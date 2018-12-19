@@ -83,7 +83,7 @@ MainWin::MainWin()
 
 	// insert loaded results into GUI
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
-		matchWindow->addResult(getMainAlias(currResult->first.getWinner().getID()), getMainAlias(currResult->first.getLoser().getID()), currResult->second);
+		matchWindow->addResult(getMainAlias(currResult->first.getWinId()), getMainAlias(currResult->first.getLoseId()), currResult->second);
 	}
 	matchWindow->sortResultTable();
 
@@ -137,8 +137,8 @@ void MainWin::recalculateAllPeriods() {
 	// Go through results
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
 		// remember old winner's and loser's ID
-		unsigned int oldNewWinId = currResult->first.getWinner().getID();
-		unsigned int oldNewLoseId = currResult->first.getLoser().getID();
+		unsigned int oldNewWinId = currResult->first.getWinId();
+		unsigned int oldNewLoseId = currResult->first.getLoseId();
 		// assign new ID
 		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
 			if (currId->first == oldNewWinId) {
@@ -149,10 +149,7 @@ void MainWin::recalculateAllPeriods() {
 			}
 		}
 
-		Glicko2::Player* winner = Glicko2::playerByID(oldNewWinId);
-		Glicko2::Player* loser = Glicko2::playerByID(oldNewLoseId);
-
-		Glicko2::Result newResult = Glicko2::Result(*winner, *loser);
+		Glicko2::Result newResult = Glicko2::Result(oldNewWinId, oldNewLoseId);
 
 		newResults.insert(std::pair<Glicko2::Result, wxDateTime>(newResult, currResult->second));
 	}
@@ -183,10 +180,10 @@ void MainWin::recalculateAllPeriods() {
 		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 			std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
 			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-				if (std::get<0>(*currPlayer) == currResult->getWinner().getID()) {
+				if (std::get<0>(*currPlayer) == currResult->getWinId()) {
 					wins++;
 				}
-				else if (std::get<0>(*currPlayer) == currResult->getLoser().getID()) {
+				else if (std::get<0>(*currPlayer) == currResult->getLoseId()) {
 					losses++;
 				}
 			}
@@ -230,8 +227,8 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 	// Go through results
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
 		// remember old winner's and loser's ID
-		unsigned int oldNewWinId = currResult->first.getWinner().getID();
-		unsigned int oldNewLoseId = currResult->first.getLoser().getID();
+		unsigned int oldNewWinId = currResult->first.getWinId();
+		unsigned int oldNewLoseId = currResult->first.getLoseId();
 		// assign new ID
 		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
 			if (currId->first == oldNewWinId) {
@@ -242,10 +239,7 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 			}
 		}
 
-		Glicko2::Player* winner = Glicko2::playerByID(oldNewWinId);
-		Glicko2::Player* loser = Glicko2::playerByID(oldNewLoseId);
-
-		Glicko2::Result newResult = Glicko2::Result(*winner, *loser);
+		Glicko2::Result newResult = Glicko2::Result(oldNewWinId, oldNewLoseId);
 
 		newResults.insert(std::pair<Glicko2::Result, wxDateTime>(newResult, currResult->second));
 	}
@@ -283,10 +277,10 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 			std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
 			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-				if (std::get<0>(*currPlayer) == currResult->getWinner().getID()) {
+				if (std::get<0>(*currPlayer) == currResult->getWinId()) {
 					wins++;
 				}
-				else if (std::get<0>(*currPlayer) == currResult->getLoser().getID()) {
+				else if (std::get<0>(*currPlayer) == currResult->getLoseId()) {
 					losses++;
 				}
 			}
@@ -352,9 +346,9 @@ void MainWin::removePlayer(unsigned int id) {
 			// remove all results including the player
 			auto currResult = results.begin();
 			for (; currResult != results.end(); ) {
-				if (currResult->first.getWinner().getID() == id || currResult->first.getLoser().getID() == id) {
-					std::string winnerAlias = getMainAlias(currResult->first.getWinner().getID());
-					std::string loserAlias = getMainAlias(currResult->first.getLoser().getID());
+				if (currResult->first.getWinId() == id || currResult->first.getLoseId() == id) {
+					std::string winnerAlias = getMainAlias(currResult->first.getWinId());
+					std::string loserAlias = getMainAlias(currResult->first.getLoseId());
 
 					matchWindow->removeResult(winnerAlias, loserAlias, currResult->second);
 
@@ -520,11 +514,7 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 		return;
 	}
 
-	// Retrieve pointer to the player-object for use with result
-	Glicko2::Player* winPlayer = Glicko2::playerByID(winID);
-	Glicko2::Player* losePlayer = Glicko2::playerByID(loseID);
-
-	Glicko2::Result resultToAdd = Glicko2::Result(*winPlayer, *losePlayer);
+	Glicko2::Result resultToAdd = Glicko2::Result(winID, loseID);
 
 	results.insert(std::pair<Glicko2::Result, wxDateTime>(resultToAdd, std::get<2>(*resultTuple)));
 	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple));
@@ -549,9 +539,9 @@ void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
 		// compare Dates first
 		if (currResult->second.IsSameDate(std::get<2>(*data))) {
 			// compare winner alias
-			if (getMainAlias(currResult->first.getWinner().getID()) == std::get<0>(*data)) {
+			if (getMainAlias(currResult->first.getWinId()) == std::get<0>(*data)) {
 				// compare loser alias
-				if (getMainAlias(currResult->first.getLoser().getID()) == std::get<1>(*data)) {
+				if (getMainAlias(currResult->first.getLoseId()) == std::get<1>(*data)) {
 					results.erase(currResult);
 					matchWindow->removeResult();
 
@@ -705,9 +695,6 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 			std::string scoreString = currMatch["scores_csv"].asString();
 
-			// to store the players and create the result in the end
-			Glicko2::Player* winner;
-			Glicko2::Player* loser;
 			// to store date and create result in the end
 			wxDateTime dateOfMatch;
 
@@ -741,28 +728,20 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 						wxDateTime dateOfMatch;
 						dateOfMatch.ParseFormat(wxString(currMatch["completed_at"].asString().substr(0, 10)), wxString("%Y-%m-%d"));
 
-						// get players
-						Glicko2::Player* winner;
-						Glicko2::Player* loser;
-
 						// get scores
 						std::string p1Score = scoreString.substr(0, scoreString.find_first_of("-"));
 						std::string p2Score = scoreString.substr(scoreString.find_first_of("-") + 1);
 
 						// set winner and loser by scores
 						if (std::stoi(p1Score) > std::stoi(p2Score)) {
-							winner = Glicko2::playerByID(p1Id);
-							loser = Glicko2::playerByID(p2Id);
 							// add results to result-collection-thingy(set, a set of sets, ha!)
-							Glicko2::Result toAdd = Glicko2::Result(*winner, *loser);
+							Glicko2::Result toAdd = Glicko2::Result(p1Id, p2Id);
 							results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, dateOfMatch));
 							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfMatch);
 						}
 						else {
-							winner = Glicko2::playerByID(p2Id);
-							loser = Glicko2::playerByID(p1Id);
 							// add results to result-collection-thingy(set, a set of sets, ha!)
-							Glicko2::Result toAdd = Glicko2::Result(*winner, *loser);
+							Glicko2::Result toAdd = Glicko2::Result(p2Id, p1Id);
 							results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, dateOfMatch));
 							matchWindow->addResult(getMainAlias(p2Id), getMainAlias(p1Id), dateOfMatch);
 						}
@@ -793,12 +772,8 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 						dateOfMatch.ParseFormat(wxString(currMatch["completed_at"].asString().substr(0, 10)), wxString("%Y-%m-%d"));
 
-						// set winner and loser by scores
-						winner = Glicko2::playerByID(winId);
-						loser = Glicko2::playerByID(loseId);
-
 						// add results to result-collection-thingy(set, a set of sets, ha!)
-						Glicko2::Result toAdd = Glicko2::Result(*winner, *loser);
+						Glicko2::Result toAdd = Glicko2::Result(winId, loseId);
 						results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, dateOfMatch));
 						matchWindow->addResult(getMainAlias(winId), getMainAlias(loseId), dateOfMatch);
 					}
@@ -968,10 +943,10 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 				for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 					std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
 					for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-						if (std::get<0>(*currPlayer) == currResult->getWinner().getID()) {
+						if (std::get<0>(*currPlayer) == currResult->getWinId()) {
 							wins++;
 						}
-						else if (std::get<0>(*currPlayer) == currResult->getLoser().getID()) {
+						else if (std::get<0>(*currPlayer) == currResult->getLoseId()) {
 							losses++;
 						}
 					}
@@ -1268,10 +1243,8 @@ bool MainWin::loadResults() {
 
 		// if one of the IDs is still -1 here or both players got assigned to the same name, skip adding the result
 		if (!(winnerID == -1 || loserID == -1 || winnerID == loserID)) {
-			Glicko2::Player* winningPlayer = Glicko2::playerByID(winnerID);
-			Glicko2::Player* losingPlayer = Glicko2::playerByID(loserID);
 
-			Glicko2::Result toAdd = Glicko2::Result(*winningPlayer, *losingPlayer);
+			Glicko2::Result toAdd = Glicko2::Result(winnerID, loserID);
 			wxDateTime resultsDate;
 			if (!resultsDate.ParseISODate((*currResult)["date"].asString())) {
 				wxMessageBox(wxString("Unable to parse following date: " + (*currResult)["date"].asString() + "\n" "Result will be disregarded"),
@@ -1307,8 +1280,8 @@ bool MainWin::saveResults() {
 
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) { // iterate through playerbase
 		Json::Value resultToAdd;
-		resultToAdd["winner"] = getMainAlias(currResult->first.getWinner().getID());
-		resultToAdd["loser"] = getMainAlias(currResult->first.getLoser().getID());
+		resultToAdd["winner"] = getMainAlias(currResult->first.getWinId());
+		resultToAdd["loser"] = getMainAlias(currResult->first.getLoseId());
 		resultToAdd["date"] = currResult->second.FormatISODate().ToStdString();
 
 		allResults.append(resultToAdd);

@@ -15,19 +15,18 @@ namespace Glicko2 {
 		/* ------------ Result ------------
 		Objects of the Result class represent reported outcomes of sets/matches. Only the overall outcome of a set is considered in Glicko, not single games.
 		parameters:
-			pP1		"player 1" of the set
-			pP2		"player 2" of the set
-			pWinner	the winner of the set
+			winId		the internal ID of the winner
+			loseId		the internal ID of the loser
 		*/
-		Result(Player pWinner, Player pLoser);
+		Result(unsigned int pWinId, unsigned int pLoseId);
 
 		// getters and setters
-		Player getWinner() const;
-		Player getLoser() const;
+		unsigned int getWinId() const;
+		unsigned int getLoseId() const;
 
 	private:
-		Player winner;
-		Player loser;
+		unsigned int winId;
+		unsigned int loseId;
 	};
 }
 

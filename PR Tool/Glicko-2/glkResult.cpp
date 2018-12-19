@@ -3,17 +3,17 @@
 #include "glkResult.h"
 
 namespace Glicko2 {
-	Result::Result(Player pWinner, Player pLoser)
-		:winner(pWinner), loser(pLoser)
+	Result::Result(unsigned int pWinId, unsigned int pLoseId)
+		:winId(pWinId), loseId(pLoseId)
 	{
 
 	}
 
-	Player Result::getWinner() const {
-		return winner;
+	unsigned int Result::getWinId() const {
+		return winId;
 	}
 
-	Player Result::getLoser() const {
-		return loser;
+	unsigned int Result::getLoseId() const {
+		return loseId;
 	}
 }
