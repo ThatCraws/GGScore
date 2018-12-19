@@ -1,6 +1,4 @@
 TODO
-
-- Make Glicko2::Result only save IDs
 								
 - Use const qualifier where possible
 
