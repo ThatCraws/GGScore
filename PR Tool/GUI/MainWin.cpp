@@ -128,7 +128,11 @@ void MainWin::recalculateAllPeriods() {
 		std::get<0>(playerBase[i]) = Glicko2::createPlayer(std::get<0>(startVals), std::get<1>(startVals), std::get<2>(startVals));
 		// update to map to new ID
 		oldNewIdMap[i].second = std::get<0>(playerBase[i]);
-		periodWindow->updatePlayerID(oldNewIdMap[i].first, std::get<1>(playerBase[i])[0], oldNewIdMap[i].second);
+
+		// only update ID in the rating table if player is present in the first place
+		if (std::get<3>(playerBase[i])) {
+			periodWindow->updatePlayerID(oldNewIdMap[i].first, std::get<1>(playerBase[i])[0], oldNewIdMap[i].second);
+		}
 
 	} // World with all players on their starting values created
 
@@ -172,25 +176,28 @@ void MainWin::recalculateAllPeriods() {
 			std::get<2>(ratingVector[i + 1]) = realPlayer->getVolatility();
 		}
 	}
-	// Update rating period-tab rating table
+	// Update rating period-tab rating table 
 	// Count wins and losses per player
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		unsigned int wins = 0;
-		unsigned int losses = 0;
-		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-			std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
-			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-				if (std::get<0>(*currPlayer) == currResult->getWinId()) {
-					wins++;
-				}
-				else if (std::get<0>(*currPlayer) == currResult->getLoseId()) {
-					losses++;
+		// only update when player is visible
+		if (std::get<3>(*currPlayer)) {
+			unsigned int wins = 0;
+			unsigned int losses = 0;
+			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
+					if (std::get<0>(*currPlayer) == currResult->getWinId()) {
+						wins++;
+					}
+					else if (std::get<0>(*currPlayer) == currResult->getLoseId()) {
+						losses++;
+					}
 				}
 			}
-		}
 
-		std::vector<std::tuple<double, double, double>>& currRatingVector = std::get<2>(*currPlayer);
-		periodWindow->updatePlayer(std::get<0>(*currPlayer), std::get<0>(currRatingVector[currRatingVector.size() - 1]), wins, losses);
+			std::vector<std::tuple<double, double, double>>& currRatingVector = std::get<2>(*currPlayer);
+			periodWindow->updatePlayer(std::get<0>(*currPlayer), std::get<0>(currRatingVector[currRatingVector.size() - 1]), wins, losses);
+		}
 	}
 	periodWindow->sortMatchTable();
 }
@@ -219,7 +226,10 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 		oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(std::get<0>(playerBase[i]), -1));
 		std::get<0>(playerBase[i]) = Glicko2::createPlayer(std::get<0>(currRatingVector[index]), std::get<1>(currRatingVector[index]), std::get<2>(currRatingVector[index]));
 		oldNewIdMap[i].second = std::get<0>(playerBase[i]);
-		periodWindow->updatePlayerID(oldNewIdMap[i].first, std::get<1>(playerBase[i])[0], oldNewIdMap[i].second);
+
+		if (std::get<3>(playerBase[i])) {
+			periodWindow->updatePlayerID(oldNewIdMap[i].first, std::get<1>(playerBase[i])[0], oldNewIdMap[i].second);
+		}
 	}
 
 	// recreate results with new IDs
@@ -272,21 +282,24 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 	// Update rating period-tab rating table
 	// Count wins and losses per player
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		unsigned int wins = 0;
-		unsigned int losses = 0;
-		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-			std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
-			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-				if (std::get<0>(*currPlayer) == currResult->getWinId()) {
-					wins++;
-				}
-				else if (std::get<0>(*currPlayer) == currResult->getLoseId()) {
-					losses++;
+		// only update if player is visible
+		if (std::get<3>(*currPlayer)) {
+			unsigned int wins = 0;
+			unsigned int losses = 0;
+			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
+					if (std::get<0>(*currPlayer) == currResult->getWinId()) {
+						wins++;
+					}
+					else if (std::get<0>(*currPlayer) == currResult->getLoseId()) {
+						losses++;
+					}
 				}
 			}
+			std::vector<std::tuple<double, double, double>>& currRatingVector = std::get<2>(*currPlayer);
+			periodWindow->updatePlayer(std::get<0>(*currPlayer), std::get<0>(currRatingVector[currRatingVector.size() - 1]), wins, losses);
 		}
-		std::vector<std::tuple<double, double, double>>& currRatingVector = std::get<2>(*currPlayer);
-		periodWindow->updatePlayer(std::get<0>(*currPlayer), std::get<0>(currRatingVector[currRatingVector.size() - 1]), wins, losses);
 	}
 	periodWindow->sortMatchTable();
 }
@@ -328,10 +341,12 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 	// Update match reports alias-vector
 	matchWindow->setMainAliases(retrieveMainAliases());
 
-	// Add player to the rating-periods rating table
-	periodWindow->addPlayer(id, atLeastOneAlias[0]);
-	periodWindow->updatePlayer(id, std::get<0>((*optionalRatingVector)[optionalRatingVector->size() - 1]), 0, 0);
-	periodWindow->sortMatchTable();
+	// Add player to the rating-periods rating table, if visible
+	if (visibility) {
+		periodWindow->addPlayer(id, atLeastOneAlias[0]);
+		periodWindow->updatePlayer(id, std::get<0>((*optionalRatingVector)[optionalRatingVector->size() - 1]), 0, 0);
+		periodWindow->sortMatchTable();
+	}
 
 	// Add Alias to the alias selection in the player edit window
 	playerEditWindow->setMainAliases(retrieveMainAliases());
