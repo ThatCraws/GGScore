@@ -105,6 +105,7 @@ MainWin::MainWin()
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditAliasAddBtn, this, ID_PLA_EDIT_ADD_ALIAS_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditAliasRemBtn, this, ID_PLA_EDIT_REM_ALIAS_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditAliasMainBtn, this, ID_PLA_EDIT_MAIN_ALIAS_BTN);
+	Bind(wxEVT_CHECKBOX, &MainWin::OnPlayerEditToggleVisibility, this, ID_PLA_EDIT_HIDE_PLA_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditPlayerRemBtn, this, ID_PLA_EDIT_REM_BTN);
 
 }
@@ -296,7 +297,7 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 	periodWindow->sortMatchTable();
 }
 
-unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector) {
+unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector, bool visibility) {
 	if (atLeastOneAlias.empty()) {
 		wxMessageBox(wxString("Tried to add player without alias for some reason. \n" "No player added."), wxString("Alias-list to initialize was empty"));
 		return -1;
@@ -326,7 +327,7 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 	unsigned int id = Glicko2::createPlayer(std::get<0>(currentRatingValues), std::get<1>(currentRatingValues), std::get<2>(currentRatingValues));
 
 	// uniting the stored ID, aliases and ratings to add them to playerBase
-	std::tuple<unsigned int, std::vector<std::string>, std::vector<std::tuple<double, double, double>>> currMapEntry(id, atLeastOneAlias, *optionalRatingVector);
+	std::tuple<unsigned int, std::vector<std::string>, std::vector<std::tuple<double, double, double>>, bool> currMapEntry(id, atLeastOneAlias, *optionalRatingVector, visibility);
 
 	playerBase.push_back(currMapEntry);;
 
@@ -379,6 +380,7 @@ void MainWin::removePlayer(unsigned int id) {
 	}
 }
 
+// Rating period bind-methods
 void MainWin::OnRatPerAddBtn(wxCommandEvent& event) {
 	std::pair<wxDateTime, wxDateTime>* thePeriod = (std::pair<wxDateTime, wxDateTime>*)event.GetClientData();
 
@@ -477,6 +479,7 @@ void MainWin::OnRatPerRemBtn(wxCommandEvent& event) {
 	delete periodToRem;
 }
 
+// Match report bind-methods
 void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	// resultTuple: 0: winner, 1: loser, 2: date
 	std::tuple<std::string, std::string, wxDateTime>* resultTuple = (std::tuple<std::string, std::string, wxDateTime>*)event.GetClientData();
@@ -810,11 +813,20 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 	recalculateAllPeriods();
 }
 
+// Player edit bind-methods
 void MainWin::OnPlayerEditPlayerChoice(wxCommandEvent& event) {
 	std::string* theAlias = (std::string*)event.GetClientData();
 	unsigned int id = playerIDByAlias(*theAlias);
 	std::vector<std::string> mainAliases = getPlayersAliases(id);
 	playerEditWindow->setPlayersAliases(mainAliases);
+
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		if (std::get<0>(*currPlayer) == id) {
+			// the default is that a player is visible and the checkbox is unchecked (which means true for the box means a hidden player...
+			// ...but true for a player means shown
+			playerEditWindow->setHidden(!std::get<3>(*currPlayer));
+		}
+	}
 
 	delete theAlias;
 }
@@ -939,6 +951,42 @@ void MainWin::OnPlayerEditAliasMainBtn(wxCommandEvent& event) {
 	}
 
 	delete toMakeMain;
+}
+
+void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
+	std::string* theData = (std::string*)event.GetClientData();
+
+	unsigned int id = playerIDByAlias(*theData);
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		if (std::get<0>(*currPlayer) == id) {
+			std::get<3>(*currPlayer) = !(playerEditWindow->getHidden());
+			if (std::get<3>(*currPlayer)) {
+
+				// Count wins and losses
+				unsigned int wins = 0;
+				unsigned int losses = 0;
+				for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+					std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+					for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
+						if (std::get<0>(*currPlayer) == currResult->getWinner().getID()) {
+							wins++;
+						}
+						else if (std::get<0>(*currPlayer) == currResult->getLoser().getID()) {
+							losses++;
+						}
+					}
+				}
+				periodWindow->addPlayer(std::get<0>(*currPlayer), std::get<1>(*currPlayer)[0]);
+				periodWindow->updatePlayer(std::get<0>(*currPlayer), std::get<0>(std::get<2>(*currPlayer)[std::get<2>(*currPlayer).size() - 1]), wins, losses);
+			}
+			else {
+				periodWindow->removePlayer(std::get<0>(*currPlayer));
+			}
+
+			delete theData;
+			return;
+		}
+	}
 }
 
 void MainWin::OnPlayerEditPlayerRemBtn(wxCommandEvent& event) {
@@ -1079,8 +1127,6 @@ bool MainWin::loadWorld() {
 		start.ParseISODate(periods[i]["start date"].asString());
 		end.ParseISODate(periods[i]["end date"].asString());
 
-		//wxMessageBox(wxString("Pushing period from " + start.Format("%d.%m.%Y") + " to " + end.Format("%d.%m.%Y") + "."));
-
 		ratingPeriods.push_back(std::pair<wxDateTime, wxDateTime>(start, end));
 	}
 	std::sort(ratingPeriods.begin(), ratingPeriods.end(), comparePeriods);
@@ -1104,10 +1150,14 @@ bool MainWin::loadWorld() {
 		// storing the players' rating values per rating period
 		for (unsigned int j = 0; j < ratingVals.size(); j++) {
 			ratingVector.push_back(std::make_tuple(ratingVals[j]["rating"].asDouble(), ratingVals[j]["deviation"].asDouble(), ratingVals[j]["volatility"].asDouble()));
-			//wxMessageBox(wxString("    rating-tuple containing: " + ratingVals[j]["rating"].asString() + " pushed into rating-vector"));
 		}
 
-		addNewPlayer(aliases, &ratingVector);
+		if (players[i].isMember("visible")) {
+			addNewPlayer(aliases, &ratingVector, players[i]["visible"].asBool());
+		}
+		else {
+			addNewPlayer(aliases, &ratingVector);
+		}
 	}
 
 	ifs.close();
@@ -1136,8 +1186,6 @@ bool MainWin::saveWorld() {
 			currAliases.append(Json::Value(*currAlias)); // filling the aliases section with the aliases of the current player
 		}
 
-		currEntry["aliases"] = currAliases;
-
 		Json::Value currPlayerRatings(Json::arrayValue); // equal to the "rating values" in players.json (to save all rating values for every period)
 
 		for (auto currRatingTuple = std::get<2>(*currPlayerBasePlayer).begin(); currRatingTuple != std::get<2>(*currPlayerBasePlayer).end(); currRatingTuple++) {
@@ -1151,9 +1199,10 @@ bool MainWin::saveWorld() {
 		}
 
 		currEntry["rating values"] = currPlayerRatings;
+		currEntry["aliases"] = currAliases;
+		currEntry["visible"] = std::get<3>(*currPlayerBasePlayer);
 
 		allPlayers.append(currEntry);
-
 
 	}
 	playersJson["players"] = allPlayers;

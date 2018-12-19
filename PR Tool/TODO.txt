@@ -4,7 +4,5 @@ TODO
 								
 - Use const qualifier where possible
 
-- Implement "Hide in ranking" checkbox in "player edit"-tab (meaning a "visible"-field in the playerbase and players.json-file)
-
 - Implement "cleanup/finalize periods"-button to remove all rating periods and results and make the latest rating values...
 	...the only ones in the rating vector of each player (to empty up the tables while being able to continue with current rating)

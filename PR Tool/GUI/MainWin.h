@@ -30,9 +30,6 @@ private:
 		ratingPeriod	The rating period from where to start recalculating (including the period itself)
 	*/
 	void recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& ratingPeriod);
-	
-	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector = nullptr); 
-	void removePlayer(unsigned int id);
 
 	/* ------------ loadWorld ------------
 	Fills the playerBase with players loaded from players.json-file.
@@ -82,6 +79,9 @@ private:
 	bool saveSettings();
 
 	// Handling adding/removing from playerbase/periods/results
+
+	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector = nullptr, bool visibility = true);
+	void removePlayer(unsigned int id);
 
 	/* ------------ findPeriod ------------
 	Looks for a given period of time in the rating periods-vector and returns it
@@ -138,6 +138,7 @@ private:
 	void OnPlayerEditAliasAddBtn(wxCommandEvent& event);
 	void OnPlayerEditAliasRemBtn(wxCommandEvent& event);
 	void OnPlayerEditAliasMainBtn(wxCommandEvent& event);
+	void OnPlayerEditToggleVisibility(wxCommandEvent& event);
 	void OnPlayerEditPlayerRemBtn(wxCommandEvent& event);
 
 	void OnExit(wxCloseEvent& event);
@@ -148,6 +149,7 @@ private:
 	WinPlayerEdit* playerEditWindow;
 	WinSetAbt* setAbtWindow;
 
+	// TODO make those vectors of structs(?)
 	/* ------------ playerBase ------------
 	"Maps" player IDs to their known aliases and rating values per period.
 
@@ -157,9 +159,10 @@ private:
 						2: ratingvector[period] -> rating-tuple
 							0: rating
 							1: deviation
-							3: volatility
+							2: volatility
+						3: visibility (in the ranking table. true: shown, false: hidden)
 	*/
-	std::vector<std::tuple<unsigned int, std::vector<std::string>, std::vector<std::tuple<double, double, double>>>> playerBase;
+	std::vector<std::tuple<unsigned int, std::vector<std::string>, std::vector<std::tuple<double, double, double>>, bool>> playerBase;
 	/* ------------ ratingPeriods ------------
 	Stores rating periods consisting of start and end date ordered from oldest(first) to newest(last).
 
@@ -177,7 +180,6 @@ private:
 						second: Date (wxDateTime)
 	*/
 	std::multiset<std::pair<Glicko2::Result, wxDateTime>, bool(*)(const std::pair<Glicko2::Result, wxDateTime >&, const std::pair<Glicko2::Result, wxDateTime >&)> results;
-	unsigned int currResultID;
 
 };
 

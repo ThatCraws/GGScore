@@ -27,12 +27,15 @@ WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString c
 	wxButton* addAliasBtn = new wxButton(this, ID_PLA_EDIT_ADD_ALIAS_BTN, wxString("Add alias"));
 	wxButton* remAliasBtn = new wxButton(this, ID_PLA_EDIT_REM_ALIAS_BTN, wxString("Remove alias"));
 	wxButton* mainAliasBtn = new wxButton(this, ID_PLA_EDIT_MAIN_ALIAS_BTN, wxString("Make main alias"));
+	hidePlayerCheck = new wxCheckBox(this, ID_PLA_EDIT_HIDE_PLA_BTN, wxString("Hide in ranking"));
+	hidePlayerCheck->Disable();
 
 	aliasModSizer->Add(aliasChoice, 0, wxEXPAND);
 	aliasModSizer->AddSpacer(10);
 	aliasModSizer->Add(addAliasBtn, 0, wxEXPAND);
 	aliasModSizer->Add(remAliasBtn, 0, wxEXPAND);
 	aliasModSizer->Add(mainAliasBtn, 0, wxEXPAND);
+	aliasModSizer->Add(hidePlayerCheck, 0, wxEXPAND); // Not exactly alias modifying, but better here
 	// list of aliases of selected player
 	aliasListView = new wxListView(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL);
 	aliasListView->InsertColumn(0, wxEmptyString);
@@ -46,8 +49,9 @@ WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString c
 	Bind(wxEVT_CHOICE, &WinPlayerEdit::OnPlayerChoice, this, ID_PLA_EDIT_PLA_CHOICE);
 	Bind(wxEVT_BUTTON, &WinPlayerEdit::OnAliasAddBtn, this, ID_PLA_EDIT_ADD_ALIAS_BTN);
 	Bind(wxEVT_BUTTON, &WinPlayerEdit::OnAliasMainBtn, this, ID_PLA_EDIT_MAIN_ALIAS_BTN);
-	Bind(wxEVT_BUTTON, &WinPlayerEdit::OnRemAliasBtn, this, ID_PLA_EDIT_REM_ALIAS_BTN);
-	Bind(wxEVT_BUTTON, &WinPlayerEdit::OnRemPlayerBtn, this, ID_PLA_EDIT_REM_BTN);
+	Bind(wxEVT_BUTTON, &WinPlayerEdit::OnAliasRemBtn, this, ID_PLA_EDIT_REM_ALIAS_BTN);
+	Bind(wxEVT_CHECKBOX, &WinPlayerEdit::OnPlayerToggleVis, this, ID_PLA_EDIT_HIDE_PLA_BTN);
+	Bind(wxEVT_BUTTON, &WinPlayerEdit::OnPlayerRemBtn, this, ID_PLA_EDIT_REM_BTN);
 
 	mainSizer->Add(aliasManSizer, 1, wxEXPAND);
 	mainSizer->Add(remBtn, 0, wxALIGN_CENTER);
@@ -60,11 +64,19 @@ void WinPlayerEdit::OnPlayerChoice(wxCommandEvent& event) {
 	// Only skip to get the aliases to display if the current selection is valid and not a new player
 	if (aliasChoice->GetStringSelection().ToStdString() != "<New player>" && aliasChoice->GetStringSelection().ToStdString() != "") {
 		std::string* theData = new std::string(aliasChoice->GetStringSelection().ToStdString());
+
+		if (!hidePlayerCheck->IsEnabled()) {
+			hidePlayerCheck->Enable();
+		}
+
 		event.SetClientData(theData);
 		event.Skip();
 	}
 	else {
 		aliasListView->DeleteAllItems(); // New player is selected(or invalid selection), so don't display aliases 
+		if (hidePlayerCheck->IsEnabled()) {
+			hidePlayerCheck->Disable();
+		}
 	}
 }
 
@@ -89,7 +101,7 @@ void WinPlayerEdit::OnAliasAddBtn(wxCommandEvent& event) {
 	}
 }
 
-void WinPlayerEdit::OnRemAliasBtn(wxCommandEvent& event) {
+void WinPlayerEdit::OnAliasRemBtn(wxCommandEvent& event) {
 	std::string* aliasToRem;
 	
 	if (aliasListView->GetFirstSelected() == -1) {
@@ -97,19 +109,6 @@ void WinPlayerEdit::OnRemAliasBtn(wxCommandEvent& event) {
 	}
 
 	aliasToRem = new std::string(aliasListView->GetItemText(aliasListView->GetFirstSelected()).ToStdString());
-
-	event.SetClientData(aliasToRem);
-	event.Skip();
-}
-
-void WinPlayerEdit::OnRemPlayerBtn(wxCommandEvent& event) {
-	std::string* aliasToRem;
-
-	if (aliasChoice->GetStringSelection().IsSameAs(wxString("<New player>"))) {
-		return;
-	}
-
-	aliasToRem = new std::string(aliasChoice->GetStringSelection().ToStdString());
 
 	event.SetClientData(aliasToRem);
 	event.Skip();
@@ -125,6 +124,26 @@ void WinPlayerEdit::OnAliasMainBtn(wxCommandEvent& event) {
 	event.SetClientData(theData);
 	event.Skip();
 }
+
+void WinPlayerEdit::OnPlayerToggleVis(wxCommandEvent& event) {
+	std::string* theData = new std::string(aliasChoice->GetStringSelection().ToStdString());
+	event.SetClientData(theData);
+	event.Skip();
+}
+
+void WinPlayerEdit::OnPlayerRemBtn(wxCommandEvent& event) {
+	std::string* aliasToRem;
+
+	if (aliasChoice->GetStringSelection().IsSameAs(wxString("<New player>"))) {
+		return;
+	}
+
+	aliasToRem = new std::string(aliasChoice->GetStringSelection().ToStdString());
+
+	event.SetClientData(aliasToRem);
+	event.Skip();
+}
+
 
 bool compareAlphabetically(std::string stringOne, std::string stringTwo) {
 
@@ -152,6 +171,9 @@ void WinPlayerEdit::setMainAliases(std::vector<std::string> newMainAliases, std:
 
 	if (item != wxNOT_FOUND) {
 		aliasChoice->SetSelection(item);
+		if (selected != "<New player>") {
+			hidePlayerCheck->Enable();
+		}
 	}
 }
 
@@ -161,4 +183,12 @@ void WinPlayerEdit::setPlayersAliases(std::vector<std::string> playersAliases) {
 	for (unsigned int i = 0; i < playersAliases.size(); i++) {
 		aliasListView->InsertItem(i, wxString(playersAliases[i]));
 	}
+}
+
+void WinPlayerEdit::setHidden(bool isHidden) {
+	hidePlayerCheck->SetValue(isHidden);
+}
+
+bool WinPlayerEdit::getHidden() const {
+	return hidePlayerCheck->GetValue();
 }

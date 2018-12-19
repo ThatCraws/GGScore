@@ -12,19 +12,23 @@ public:
 
 	void setMainAliases(std::vector<std::string> newMainAliases, std::string selected = "<New player>");
 	void setPlayersAliases(std::vector<std::string> playersAliases);
+	void setHidden(bool isHidden);
+	bool getHidden() const;
 private:
 	// controls used in methods
 	wxChoice* aliasChoice;
 	wxListView* aliasListView;
+	wxCheckBox* hidePlayerCheck;
 
 	wxArrayString mainAliases;
 
 	// Bind methods
 	void OnPlayerChoice(wxCommandEvent& event);
 	void OnAliasAddBtn(wxCommandEvent& event);
+	void OnAliasRemBtn(wxCommandEvent& event);
 	void OnAliasMainBtn(wxCommandEvent& event);
-	void OnRemAliasBtn(wxCommandEvent& event);
-	void OnRemPlayerBtn(wxCommandEvent& event);
+	void OnPlayerToggleVis(wxCommandEvent& event);
+	void OnPlayerRemBtn(wxCommandEvent& event);
 };
 
 #endif
