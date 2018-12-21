@@ -31,5 +31,11 @@
 *.out
 *.app
 
+# Visual Studio
+*.user
+
 # Created by application
 *.json
+
+# Used to not backup my .jsons to not lose them while debugging
+*.bak
