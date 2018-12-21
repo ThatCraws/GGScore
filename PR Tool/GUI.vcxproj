@@ -30,7 +30,6 @@
     <ClInclude Include="GUI\WinRatPer.h" />
     <ClInclude Include="GUI\WinSetAbt.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="resource1.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="TODO.txt" />

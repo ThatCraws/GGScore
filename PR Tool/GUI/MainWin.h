@@ -17,20 +17,116 @@ class MainWin : public wxFrame
 {
 public:
 	MainWin();
-	//std::vector<std::string>& getAliasesByID(unsigned int id);
 
 private:
+	// TODO save the wins and losses from previous rating periods (before finalizing) per player to set the wins/losses/win%-fields in periodWindow.
+	void finalize();
+
+	// actually calculating the ratings
+
+	/* ------------ recalculateAllPeriods ------------
+	Completely recalculates all players' ratings. Taking into account all results within a rating period.
+	Starting with the starting values of all players (first element in rating-vector) the algorithm is applied for each period (/its results)
+	This method recreates the Glicko-2-World and may change IDs, but updates them in the playerBase and rating periods tab as well.
+	*/
 	void recalculateAllPeriods();
 
 	/* ------------ recalculateFromPeriod ------------
-	Updates the players' rating values with the results from a given rating period.
+	Recalculates all players' rating values from a given rating period on. 
+	Starting with the rating values from before the given period and using the results from the period to get the new ratings.
+	Then the next period (if any) will be calculated and so on, untill the ratings are up-to-date (again).
 	This method recreates the Glicko-2-World and may change IDs, but updates them in the playerBase and rating periods tab as well.
 
 	parameters:
-		ratingPeriod	The rating period from where to start recalculating (including the period itself)
+		ratingPeriod	The rating period from where to start recalculating(including the period itself)
 	*/
 	void recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& ratingPeriod);
 
+	// Handling adding/removing from playerbase/periods/results
+
+	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector = nullptr, bool visibility = true);
+	void removePlayer(unsigned int id);
+
+	/* ------------ findPeriod ------------
+Looks for a given period of time in the rating periods-vector and returns it
+
+Parameter:
+	start	start date of the period
+	end		end date of the period
+
+Return:
+	The found date as pointer or Nullptr if not found
+*/
+	const std::pair<wxDateTime, wxDateTime>* findPeriod(wxDateTime& start, wxDateTime& end);
+	
+	/* ------------ getResultsInPeriod ------------
+Returns all Results that happened within the given time frame(after or on the "start" and before or on "end").
+
+Parameter:
+	start	start date of the period
+	end		end date of the period
+
+Return:
+	A vector of Glicko-2 Results that where entered to occur (or rather added to the results-vector with a date) within the given time frame.
+*/
+	std::vector<Glicko2::Result> getResultsInPeriod(const wxDateTime& start, const wxDateTime& end);
+
+
+	/* ------------ playerIDByAlias ------------
+Looks for a given player's alias and returns its ID or -1 if it cant' be found.
+
+Parameter:
+	alias	The alias of the player to search for
+
+Return:
+	the found player's ID or -1 if it can't be found
+*/
+	unsigned int playerIDByAlias(std::string alias);
+
+	/* ------------ getPlayersAliases ------------
+Returns all the known aliases of the player with the given ID.
+
+Parameter:
+	id	The ID of the player whose aliases to return.
+
+Return:
+	A vector of strings representing the players' aliases or an empty vector, if the ID could not be found.
+*/
+	std::vector<std::string> getPlayersAliases(unsigned int id);
+
+	/* ------------ getMainAlias ------------
+Returns the display alias of the player with the given ID.
+
+Parameter:
+	id	The ID of the player whose aliases to return.
+
+Return:
+	A string representing the players' main (display) alias or an empty string, if the ID could not be found.
+*/
+	std::string getMainAlias(unsigned int id);
+
+	/* ------------ retrieveMainAliases ------------
+Returns all the known display aliases of the players in the playerBase.
+Mainly used to update the choice of aliases in the "Player Edit"-tab.
+
+Return:
+	A vector of strings representing the players' display aliases or an empty vector, if no players exist.
+*/
+	std::vector<std::string> retrieveMainAliases();
+
+	/* ------------ assignNewAlias ------------
+	Lets the user assign a new alias to a player or create a new one via dialog.
+
+	Parameter:
+		alias	The new alias, not belonging to any player yet (make sure with playerIDByAlias. This method does not check)
+
+	Return:
+		the ID of the player the alias was assigned to. Can be a new ID, if a new player was created.
+		-1, if the user presses Cancel or closes the dialog any other way than clicking "OK"
+	*/
+	unsigned int assignNewAlias(std::string alias);
+
+	// .Json-file handling/saving and loading the "world"
 	/* ------------ loadWorld ------------
 	Fills the playerBase with players loaded from players.json-file.
 	The playerBase-entries contain the players' aliases and rating values for all rating periods.
@@ -78,57 +174,11 @@ private:
 	*/
 	bool saveSettings();
 
-	// Handling adding/removing from playerbase/periods/results
-
-	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector = nullptr, bool visibility = true);
-	void removePlayer(unsigned int id);
-
-	/* ------------ findPeriod ------------
-	Looks for a given period of time in the rating periods-vector and returns it
-
-	Parameter:
-		start	start date of the period
-		end		end date of the period
-
-	Return:
-		The found date as pointer or Nullptr if not found
-	*/
-	const std::pair<wxDateTime, wxDateTime>* findPeriod(wxDateTime& start, wxDateTime& end);
-
-	std::vector<Glicko2::Result> getResultsInPeriod(const wxDateTime& start, const wxDateTime& end);
-
-	/* ------------ playerIDByAlias ------------
-	Looks for a given player's alias and returns its ID or -1 if it cant' be found.
-
-	Parameter:
-		alias	The alias of the player to search for
-
-	Return:
-		the found player's ID or -1 if it can't be found
-	*/
-	unsigned int playerIDByAlias(std::string alias);
-
-	std::vector<std::string> getPlayersAliases(unsigned int id);
-
-	std::string getMainAlias(unsigned int id);
-	std::vector<std::string> retrieveMainAliases();
-
-	/* ------------ assignNewAlias ------------
-	Lets the user assign a new alias to a player or create a new one via dialog.
-
-	Parameter:
-		alias	The new alias, not belonging to any player yet (make sure with playerIDByAlias. This method does not check)
-
-	Return:
-		the ID of the player the alias was assigned to. Can be a new ID, if a new player was created.
-		-1, if the user presses Cancel or closes the dialog any other way than clicking "OK"
-	*/
-	unsigned int assignNewAlias(std::string alias);
-
 	// --- Bind-methods/event-handling ---
 	// Rating period tab
 	void OnRatPerAddBtn(wxCommandEvent& event);
 	void OnRatPerRemBtn(wxCommandEvent& event);
+	void OnRatPerFinBtn(wxCommandEvent& event);
 	// Match report tab
 	void OnMatRepAddBtn(wxCommandEvent& event);
 	void OnMatRepRemBtn(wxCommandEvent& event);
@@ -170,7 +220,6 @@ private:
 						first: start date (wxDateTime)
 						second: end date (wxDateTime)
 	*/
-	//std::set<std::pair<wxDateTime, wxDateTime>, bool(*)(const std::pair<wxDateTime, wxDateTime>&, const std::pair<wxDateTime, wxDateTime>&)> ratingPeriods;
 	std::vector<std::pair<wxDateTime, wxDateTime>> ratingPeriods;
 	/* ------------ results ------------
 	Stores the results consisting of the Glicko-result object itself and the date the match happened ordered by the date from oldest(first) to newest(last).

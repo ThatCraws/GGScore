@@ -13,6 +13,7 @@ public:
 	void addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date);
 	void removeResult();
 	void removeResult(std::string winnerAlias, std::string loserAlias, const wxDateTime& date);
+	void clearResultTable();
 
 	void setMainAliases(std::vector<std::string> newList);
 	void updatePlayerDisplayAlias(std::string oldAlias, std::string newAlias);

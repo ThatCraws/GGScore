@@ -29,8 +29,10 @@ private:
 	wxListView* periodTable;
 	unsigned int periodViewItemID;
 
+	// Bind-methods
 	void OnBtnAddPer(wxCommandEvent& event);
 	void OnBtnRemPer(wxCommandEvent& event);
+	void OnBtnFinalize(wxCommandEvent& event);
 	void OnColumnClick(wxListEvent& event);
 };
 

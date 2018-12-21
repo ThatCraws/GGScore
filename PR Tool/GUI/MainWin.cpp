@@ -35,11 +35,9 @@ bool compareResultDates(const std::pair<Glicko2::Result, wxDateTime >& resultOne
 }
 
 MainWin::MainWin()
-	: wxFrame(NULL, wxID_ANY, "PR Tool")
+	: wxFrame(NULL, wxID_ANY, wxString("GGScore"))
 {
-	// initialize set of rating periods and results with compare-function for sorting by date
-	//ratingPeriods = std::set<std::pair<wxDateTime, wxDateTime>, bool(*)(const std::pair<wxDateTime, wxDateTime>& periodOne, const std::pair<wxDateTime, wxDateTime>& periodTwo)>(&comparePeriods);
-
+	// initialize set of results with compare-function for sorting by date
 	results = std::multiset<std::pair<Glicko2::Result, wxDateTime>, bool(*)(const std::pair<Glicko2::Result, wxDateTime >&, const std::pair<Glicko2::Result, wxDateTime >&)>(&compareResultDates);
 
 	/*
@@ -96,6 +94,7 @@ MainWin::MainWin()
 	// Events propagated from Rating Period tab
 	Bind(wxEVT_BUTTON, &MainWin::OnRatPerAddBtn, this, ID_RAT_PER_ADD_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnRatPerRemBtn, this, ID_RAT_PER_REM_BTN);
+	Bind(wxEVT_BUTTON, &MainWin::OnRatPerFinBtn, this, ID_RAT_PER_FIN_BTN);
 	// Events propagated from Match Report tab
 	Bind(wxEVT_BUTTON, &MainWin::OnMatRepAddBtn, this, ID_MAT_REP_ADD_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnMatRepRemBtn, this, ID_MAT_REP_REM_BTN);
@@ -108,6 +107,27 @@ MainWin::MainWin()
 	Bind(wxEVT_CHECKBOX, &MainWin::OnPlayerEditToggleVisibility, this, ID_PLA_EDIT_HIDE_PLA_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditPlayerRemBtn, this, ID_PLA_EDIT_REM_BTN);
 
+}
+
+void MainWin::finalize() {
+	// set the current ratings as first element in the rating-vectors and delete the other entries.
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		std::vector<std::tuple<double, double, double>>& currRatingVector = std::get<2>(*currPlayer);
+
+		currRatingVector[0] = currRatingVector[currRatingVector.size() - 1];
+		currRatingVector.resize(1);
+	}
+	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+		periodWindow->removeRatingPeriod(currPeriod->first, currPeriod->second);
+	}
+	ratingPeriods.clear();
+
+	matchWindow->clearResultTable();
+	results.clear();
+
+	// to (re)set the wins/losses/win%-fields in periodWindow (should not be neccessary once...]
+	// ...finalize doesn't reset those anymore (see TODO above finalize-declaration in MainWin.h)
+	recalculateAllPeriods();
 }
 
 void MainWin::recalculateAllPeriods() {
@@ -265,7 +285,7 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 		relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
 		// Apply glicko for those results
 		if (!relevantResults.empty()) {
-			Glicko2::glicko(relevantResults); // TODO recreate results. IDs could be wrong at this point
+			Glicko2::glicko(relevantResults);
 		}
 
 		// Update playerBase with those results
@@ -303,6 +323,7 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 	}
 	periodWindow->sortMatchTable();
 }
+
 
 unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector, bool visibility) {
 	if (atLeastOneAlias.empty()) {
@@ -389,7 +410,417 @@ void MainWin::removePlayer(unsigned int id) {
 	}
 }
 
-// Rating period bind-methods
+
+const std::pair<wxDateTime, wxDateTime>* MainWin::findPeriod(wxDateTime& start, wxDateTime& end) {
+	const std::pair<wxDateTime, wxDateTime>* toRet = nullptr;
+
+	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+		if (start.IsSameDate(currPeriod->first)) { // if entered periods start date is equal to one that's already entered, check...
+			if (end.IsSameDate(currPeriod->second)) { // ... if end date also is already entered (duplicate)
+				toRet = &(*currPeriod);
+				return toRet;
+			}
+		}
+	}
+	return toRet;
+}
+
+std::vector<Glicko2::Result> MainWin::getResultsInPeriod(const wxDateTime& start, const wxDateTime& end) {
+	std::vector<Glicko2::Result> toRet;
+
+	for (auto currRes = results.begin(); currRes != results.end(); currRes++) {
+		if ((currRes->second.IsLaterThan(start) || currRes->second.IsEqualTo(start)) &&
+			(currRes->second.IsEarlierThan(end) || currRes->second.IsEqualTo(end))) {
+			toRet.push_back(currRes->first);
+		}
+	}
+
+	return toRet;
+}
+
+
+unsigned int MainWin::playerIDByAlias(std::string alias) {
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		for (auto currAlias = std::get<1>(*currPlayer).begin(); currAlias != std::get<1>(*currPlayer).end(); currAlias++) {
+			if (alias == *currAlias) {
+				return std::get<0>(*currPlayer);
+			}
+		}
+	}
+	return -1;
+}
+
+std::vector<std::string> MainWin::getPlayersAliases(unsigned int id) {
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		if (std::get<0>(*currPlayer) == id) {
+			return std::get<1>(*currPlayer);
+		}
+	}
+	return std::vector<std::string>();
+}
+
+std::string MainWin::getMainAlias(unsigned int id) {
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		if (std::get<0>(*currPlayer) == id) {
+			return std::get<1>(*currPlayer)[0];
+		}
+	}
+	return "";
+}
+
+std::vector<std::string> MainWin::retrieveMainAliases() {
+	std::vector<std::string> toRet;
+
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		toRet.push_back(std::get<1>(*currPlayer)[0]);
+	}
+
+	return toRet;
+}
+
+unsigned int MainWin::assignNewAlias(std::string aliasToAssign) {
+	// Convert existing aliases to wxArrayString to show in choice-CTRL
+	wxArrayString existingMainAliases = wxArrayString();
+
+	std::vector<std::string> toMakeStringArray = retrieveMainAliases();
+
+	for (auto currAlias = toMakeStringArray.begin(); currAlias != toMakeStringArray.end(); currAlias++) {
+		existingMainAliases.push_back(*currAlias);
+	}
+
+	// Create dialog to assign the unknown alias to a player or create a new one
+	AssignPlayerDialog* assignDialog = new AssignPlayerDialog(this, wxID_ANY, wxString("Player ''" + aliasToAssign + " not found"), aliasToAssign, existingMainAliases,
+		setAbtWindow->getDefaultRating(), setAbtWindow->getDefaultDeviation(), setAbtWindow->getDefaultVolatility());
+
+	switch (assignDialog->ShowModal())
+	{
+	case wxID_OK:
+
+		// If new player is created
+		if (assignDialog->getAliasToAssignTo() == "") {
+			std::vector<std::string> newPlayerAliases; // If new player is created, save his alias here
+			newPlayerAliases.push_back(aliasToAssign);
+
+			assignDialog->Destroy();
+
+			std::vector<std::tuple<double, double, double>> startValues;
+			startValues.push_back(std::tuple<double, double, double>(assignDialog->getRating(), assignDialog->getDeviation(), assignDialog->getVolatility()));
+
+			return addNewPlayer(newPlayerAliases, &startValues);
+		}
+		// if the alias is to be added to another player (by here it should already have been checked if it's a duplicate (non-main alias))
+		else {
+			// Assign alias to the chosen player
+			for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+				for (auto currAlias = (std::get<1>(*currPlayer)).begin(); currAlias != (std::get<1>(*currPlayer)).end(); currAlias++) {
+					if (*currAlias == assignDialog->getAliasToAssignTo()) {
+						(std::get<1>(*currPlayer)).push_back(aliasToAssign);
+
+						assignDialog->Destroy();
+						return std::get<0>(*currPlayer);
+					}
+				}
+			}
+		}
+
+	case wxID_CANCEL:
+	default:
+		assignDialog->Destroy();
+	}
+
+	return -1;
+}
+
+// --- Json-file loading and saving ---
+bool MainWin::loadWorld() {
+	std::ifstream ifs("players.json");
+
+	if (ifs.fail()) { // If the file does not exist yet(first time running app), it will be created on exiting the app, when saving the settings.
+		//wxMessageBox(wxString("Can not open or read the file players.json. Playerbase will not be loaded.\n" "File will be created upon exiting.\n"), wxString("File could not be opened")); // 
+		return false;
+	}
+	Json::CharReaderBuilder reader;
+	Json::Value obj;
+	JSONCPP_STRING errs;
+
+	if (!Json::parseFromStream(reader, ifs, &obj, &errs)) {
+		wxMessageBox(wxString("Couldn't parse players.json. Empty file? \n" "Playerbase not loaded, file will be ''fixed'' upon exiting.\n" "Error string:\n    " + errs), wxString("Playerbase not loaded."));
+		return false;
+	}
+
+	const Json::Value& players = obj["players"]; // array of players
+
+	// load rating periods before players so the number of rating values per player can be corrected if neccessary
+	const Json::Value& periods = obj["rating periods"]; // array of start and end dates of all rating periods
+
+	wxDateTime start;
+	wxDateTime end;
+
+	for (unsigned int i = 0; i < periods.size(); i++) {
+		start.ParseISODate(periods[i]["start date"].asString());
+		end.ParseISODate(periods[i]["end date"].asString());
+
+		ratingPeriods.push_back(std::pair<wxDateTime, wxDateTime>(start, end));
+	}
+	std::sort(ratingPeriods.begin(), ratingPeriods.end(), comparePeriods);
+
+	//Create a player for each element in players-array and push their ID to player base with their aliases
+	for (unsigned int i = 0; i < players.size(); i++) {
+
+		std::vector<std::string> aliases; // vector containing all known aliases of the current player
+
+		// storing the players' aliases
+		for (unsigned int j = 0; j < players[i]["aliases"].size(); j++) {
+			aliases.push_back(players[i]["aliases"][j].asString());
+			//wxMessageBox(wxString("    alias: " + players[i]["aliases"][j].asString() + " pushed into alias-vector"));
+		}
+
+		std::vector<std::tuple<double, double, double>> ratingVector; // vector containing tuple (rating, deviation, volatility)... 
+																	  //for each rating period (start values -> current)
+
+		const Json::Value& ratingVals = players[i]["rating values"]; // array of current players' rating values (or rather rating values-objects)
+
+		// storing the players' rating values per rating period
+		for (unsigned int j = 0; j < ratingVals.size(); j++) {
+			ratingVector.push_back(std::make_tuple(ratingVals[j]["rating"].asDouble(), ratingVals[j]["deviation"].asDouble(), ratingVals[j]["volatility"].asDouble()));
+		}
+
+		if (players[i].isMember("visible")) {
+			addNewPlayer(aliases, &ratingVector, players[i]["visible"].asBool());
+		}
+		else {
+			addNewPlayer(aliases, &ratingVector);
+		}
+	}
+
+	ifs.close();
+
+	return ifs.good();
+}
+
+bool MainWin::saveWorld() {
+	std::ofstream ofs = std::ofstream("players.json", std::ios_base::trunc);
+
+	if (!ofs) {
+		wxMessageBox(wxString("Opening players.json/output-stream not successful. Playerbase and Rating periods will not be saved."));
+		return false;
+	}
+
+	Json::StreamWriterBuilder builder;
+	Json::Value playersJson; // to create the whole json-object to write to file
+
+	Json::Value allPlayers(Json::arrayValue);
+
+	for (auto currPlayerBasePlayer = playerBase.begin(); currPlayerBasePlayer != playerBase.end(); currPlayerBasePlayer++) { // iterate through playerbase
+		Json::Value currEntry; // to hold the entry of the currently saved player
+		Json::Value currAliases(Json::arrayValue); // create the aliases section of the player
+
+		for (std::vector<std::string>::iterator currAlias = std::get<1>(*currPlayerBasePlayer).begin(); currAlias != std::get<1>(*currPlayerBasePlayer).end(); currAlias++) { // iterate through aliases of current player
+			currAliases.append(Json::Value(*currAlias)); // filling the aliases section with the aliases of the current player
+		}
+
+		Json::Value currPlayerRatings(Json::arrayValue); // equal to the "rating values" in players.json (to save all rating values for every period)
+
+		for (auto currRatingTuple = std::get<2>(*currPlayerBasePlayer).begin(); currRatingTuple != std::get<2>(*currPlayerBasePlayer).end(); currRatingTuple++) {
+			//wxMessageBox(wxString("Adding ratings to player with first alias " + std::get<1>(*currPlayerBasePlayer)[0]));
+
+			Json::Value ratingValsToAdd; // Contains the rating values of the currently saved period
+			ratingValsToAdd["rating"] = std::get<0>(*currRatingTuple);
+			ratingValsToAdd["deviation"] = std::get<1>(*currRatingTuple);
+			ratingValsToAdd["volatility"] = std::get<2>(*currRatingTuple);
+			currPlayerRatings.append(ratingValsToAdd);
+		}
+
+		currEntry["rating values"] = currPlayerRatings;
+		currEntry["aliases"] = currAliases;
+		currEntry["visible"] = std::get<3>(*currPlayerBasePlayer);
+
+		allPlayers.append(currEntry);
+
+	}
+	playersJson["players"] = allPlayers;
+
+	Json::Value ratingPeriodDates(Json::arrayValue);
+
+	Json::Value currPeriodToAdd;
+
+	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+		//wxMessageBox(wxString("Adding rating period starting on: " + (*currPeriod).first.FormatISODate().ToStdString()));
+
+		currPeriodToAdd["start date"] = (*currPeriod).first.FormatISODate().ToStdString();
+		currPeriodToAdd["end date"] = (*currPeriod).second.FormatISODate().ToStdString();
+		ratingPeriodDates.append(currPeriodToAdd);
+	}
+
+	playersJson["rating periods"] = ratingPeriodDates;
+
+	Json::StreamWriter* writer = builder.newStreamWriter();
+	writer->write(playersJson, &ofs);
+
+	delete writer;
+
+	ofs.close();
+	return ofs.good();
+}
+
+bool MainWin::loadResults() {
+	std::ifstream ifs("results.json");
+
+	if (ifs.fail()) { // If the file does not exist yet(first time running app), it will be created on exiting the app, when saving the settings. 
+		return false;
+	}
+	Json::CharReaderBuilder reader;
+	Json::Value obj;
+	JSONCPP_STRING errs;
+
+	if (!Json::parseFromStream(reader, ifs, &obj, &errs)) {
+		wxMessageBox(wxString("Couldn't parse results.json. Empty file? \n" "Results not loaded, file will be ''fixed'' upon exiting.\n" "Error string:\n    " + errs), wxString("Results not loaded."));
+		return false;
+	}
+
+	const Json::Value& resultsLoaded = obj["results"]; // array of results consisting of the main-alias of winner and loser and date
+
+	for (auto currResult = resultsLoaded.begin(); currResult != resultsLoaded.end(); currResult++) {
+		unsigned int winnerID = playerIDByAlias((*currResult)["winner"].asString());
+		unsigned int loserID = playerIDByAlias((*currResult)["loser"].asString());
+
+		if (winnerID == -1) {
+			wxMessageBox(wxString("Unable to assign player with the following alias to a player from the playerbase: " +
+				(*currResult)["winner"].asString() + ". \n" "Please assign manually or result will be disregarded"),
+				wxString("Unexpected alias while reading results.json"));
+			winnerID = assignNewAlias((*currResult)["winner"].asString());
+		}
+
+		// We do not wanna show the assignPlayerDialog again, if it was shown for the winner and the user clicked cancel (winnerID still -1)
+		if (loserID == -1 && winnerID != -1) {
+			wxMessageBox(wxString("Unable to assign player with the following alias to a player from the playerbase: " +
+				(*currResult)["loser"].asString() + ". \n" "Please assign manually or result will be disregarded"),
+				wxString("Unexpected alias while reading results.json"));
+			loserID = assignNewAlias((*currResult)["loser"].asString());
+		}
+
+		// if one of the IDs is still -1 here or both players got assigned to the same name, skip adding the result
+		if (!(winnerID == -1 || loserID == -1 || winnerID == loserID)) {
+
+			Glicko2::Result toAdd = Glicko2::Result(winnerID, loserID);
+			wxDateTime resultsDate;
+			if (!resultsDate.ParseISODate((*currResult)["date"].asString())) {
+				wxMessageBox(wxString("Unable to parse following date: " + (*currResult)["date"].asString() + "\n" "Result will be disregarded"),
+					wxString("Unexpected date string while reading results.json"));
+			}
+			else {
+				//wxMessageBox(wxString("Result added: \n" "Winner: " + getMainAlias(winnerID) +
+				//	"\n" "Loser: " + getMainAlias(loserID) + "\n" "Date: " + resultsDate.Format(defaultFormatString)));
+				results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, resultsDate));
+			}
+		}
+		else if (winnerID == loserID && winnerID != -1) {
+			wxMessageBox(wxString("Result not added. Both aliases were assigned to the same player."));
+		}
+	}
+
+	ifs.close();
+
+	return ifs.good();
+}
+
+bool MainWin::saveResults() {
+	std::ofstream ofs = std::ofstream("results.json", std::ios_base::trunc);
+
+	if (!ofs) {
+		wxMessageBox(wxString("Opening results.json/output-stream not successful. Results will not be saved."));
+		return false;
+	}
+	Json::StreamWriterBuilder builder;
+	Json::Value resultsJson; // to create the whole json-object to write to file
+
+	Json::Value allResults(Json::arrayValue);
+
+	for (auto currResult = results.begin(); currResult != results.end(); currResult++) { // iterate through playerbase
+		Json::Value resultToAdd;
+		resultToAdd["winner"] = getMainAlias(currResult->first.getWinId());
+		resultToAdd["loser"] = getMainAlias(currResult->first.getLoseId());
+		resultToAdd["date"] = currResult->second.FormatISODate().ToStdString();
+
+		allResults.append(resultToAdd);
+	}
+
+	resultsJson["results"] = allResults;
+
+	Json::StreamWriter* writer = builder.newStreamWriter();
+	writer->write(resultsJson, &ofs);
+
+	delete writer;
+
+	ofs.close();
+	return ofs.good();
+}
+
+bool MainWin::loadSettings() {
+	std::ifstream ifs("settings.json");
+
+	if (ifs.fail()) { // If the file does not exist yet(first time running app), it will be created on exiting the app, when saving the settings. 
+		return false;
+	}
+	Json::CharReaderBuilder reader;
+	Json::Value obj;
+	JSONCPP_STRING errs;
+
+	if (!Json::parseFromStream(reader, ifs, &obj, &errs)) {
+		wxMessageBox(wxString("Couldn't parse settings.json. Empty file? \n" "Settings not loaded, default values will be used. File will be ''fixed'' upon exiting.\n" "Error string:\n    " + errs), wxString("Settings not loaded."));
+		return false;
+	}
+
+	const Json::Value& settingsLoaded = obj["settings"]; // array of settings consisting of the default values set in settings/about tab
+
+	setAbtWindow->setAPIKey(settingsLoaded["api key"].asString());
+	setAbtWindow->setIncludeForfeits(settingsLoaded["include forfeits"].asBool());
+
+	setAbtWindow->setDefaultRating(settingsLoaded["default values"]["rating"].asDouble());
+	setAbtWindow->setDefaultDeviation(settingsLoaded["default values"]["deviation"].asDouble());
+	setAbtWindow->setDefaultVolatility(settingsLoaded["default values"]["volatility"].asDouble());
+	setAbtWindow->setTau(settingsLoaded["tau"].asDouble());
+
+	ifs.close();
+
+	return ifs.good();
+
+}
+
+bool MainWin::saveSettings() {
+	std::ofstream ofs = std::ofstream("settings.json", std::ios_base::trunc);
+
+	if (!ofs) {
+		wxMessageBox(wxString("Opening settings.json/output-stream not successful. Settings will not be saved."));
+		return false;
+	}
+	Json::StreamWriterBuilder builder;
+	Json::Value settingsJson; // to create the whole json-object to write to file
+
+	Json::Value defaultVals;
+
+	defaultVals["rating"] = setAbtWindow->getDefaultRating();
+	defaultVals["deviation"] = setAbtWindow->getDefaultDeviation();
+	defaultVals["volatility"] = setAbtWindow->getDefaultVolatility();
+
+	Json::Value challongeUser;
+
+	settingsJson["settings"]["default values"] = defaultVals;
+	settingsJson["settings"]["api key"] = setAbtWindow->getAPIKey();
+	settingsJson["settings"]["include forfeits"] = setAbtWindow->getIncludeForfeits();
+	settingsJson["settings"]["tau"] = setAbtWindow->getTau();
+
+	Json::StreamWriter* writer = builder.newStreamWriter();
+	writer->write(settingsJson, &ofs);
+
+	delete writer;
+
+	ofs.close();
+	return ofs.good();
+}
+
+// --- Bind-methods ---
+// Rating periods tab
 void MainWin::OnRatPerAddBtn(wxCommandEvent& event) {
 	std::pair<wxDateTime, wxDateTime>* thePeriod = (std::pair<wxDateTime, wxDateTime>*)event.GetClientData();
 
@@ -488,7 +919,12 @@ void MainWin::OnRatPerRemBtn(wxCommandEvent& event) {
 	delete periodToRem;
 }
 
-// Match report bind-methods
+void MainWin::OnRatPerFinBtn(wxCommandEvent& event) {
+	// Just the handler for the button press. Call finalize-method, because it could be useful to have it in a separate method.
+	finalize();
+}
+
+// Match report tab
 void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	// resultTuple: 0: winner, 1: loser, 2: date
 	std::tuple<std::string, std::string, wxDateTime>* resultTuple = (std::tuple<std::string, std::string, wxDateTime>*)event.GetClientData();
@@ -803,7 +1239,7 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 	recalculateAllPeriods();
 }
 
-// Player edit bind-methods
+// Player edit tab
 void MainWin::OnPlayerEditPlayerChoice(wxCommandEvent& event) {
 	std::string* theAlias = (std::string*)event.GetClientData();
 	unsigned int id = playerIDByAlias(*theAlias);
@@ -995,412 +1431,6 @@ void MainWin::OnPlayerEditPlayerRemBtn(wxCommandEvent& event) {
 			return;
 		}
 	}
-}
-
-unsigned int MainWin::playerIDByAlias(std::string alias) {
-	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		for (auto currAlias = std::get<1>(*currPlayer).begin(); currAlias != std::get<1>(*currPlayer).end(); currAlias++) {
-			if (alias == *currAlias) {
-				return std::get<0>(*currPlayer);
-			}
-		}
-	}
-	return -1;
-}
-
-std::vector<std::string> MainWin::getPlayersAliases(unsigned int id) {
-	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		if (std::get<0>(*currPlayer) == id) {
-			return std::get<1>(*currPlayer);
-		}
-	}
-	return std::vector<std::string>();
-}
-
-std::string MainWin::getMainAlias(unsigned int id) {
-	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		if (std::get<0>(*currPlayer) == id) {
-			return std::get<1>(*currPlayer)[0];
-		}
-	}
-	return "";
-}
-
-std::vector<std::string> MainWin::retrieveMainAliases() {
-	std::vector<std::string> toRet;
-
-	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		toRet.push_back(std::get<1>(*currPlayer)[0]);
-	}
-
-	return toRet;
-}
-
-unsigned int MainWin::assignNewAlias(std::string aliasToAssign) {
-	// Convert existing aliases to wxArrayString to show in choice-CTRL
-	wxArrayString existingMainAliases = wxArrayString();
-
-	std::vector<std::string> toMakeStringArray = retrieveMainAliases();
-
-	for (auto currAlias = toMakeStringArray.begin(); currAlias != toMakeStringArray.end(); currAlias++) {
-		existingMainAliases.push_back(*currAlias);
-	}
-
-	// Create dialog to assign the unknown alias to a player or create a new one
-	AssignPlayerDialog* assignDialog = new AssignPlayerDialog(this, wxID_ANY, wxString("Player ''" + aliasToAssign + " not found"), aliasToAssign, existingMainAliases, 
-		setAbtWindow->getDefaultRating(), setAbtWindow->getDefaultDeviation(), setAbtWindow->getDefaultVolatility());
-
-	switch (assignDialog->ShowModal())
-	{
-	case wxID_OK:
-
-		// If new player is created
-		if (assignDialog->getAliasToAssignTo() == "") {
-			std::vector<std::string> newPlayerAliases; // If new player is created, save his alias here
-			newPlayerAliases.push_back(aliasToAssign);
-
-			assignDialog->Destroy();
-			
-			std::vector<std::tuple<double, double, double>> startValues;
-			startValues.push_back(std::tuple<double, double, double>(assignDialog->getRating(), assignDialog->getDeviation(), assignDialog->getVolatility()));
-
-			return addNewPlayer(newPlayerAliases, &startValues);
-		}
-		// if the alias is to be added to another player (by here it should already have been checked if it's a duplicate (non-main alias))
-		else {
-			// Assign alias to the chosen player
-			for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-				for (auto currAlias = (std::get<1>(*currPlayer)).begin(); currAlias != (std::get<1>(*currPlayer)).end(); currAlias++) {
-					if (*currAlias == assignDialog->getAliasToAssignTo()) {
-						(std::get<1>(*currPlayer)).push_back(aliasToAssign);
-
-						assignDialog->Destroy();
-						return std::get<0>(*currPlayer);
-					}
-				}
-			}
-		}
-
-	case wxID_CANCEL:
-	default:
-		assignDialog->Destroy();
-	}
-
-	return -1;
-}
-
-bool MainWin::loadWorld() {
-	std::ifstream ifs("players.json");
-
-	if (ifs.fail()) { // If the file does not exist yet(first time running app), it will be created on exiting the app, when saving the settings.
-		//wxMessageBox(wxString("Can not open or read the file players.json. Playerbase will not be loaded.\n" "File will be created upon exiting.\n"), wxString("File could not be opened")); // 
-		return false;
-	}
-	Json::CharReaderBuilder reader;
-	Json::Value obj;
-	JSONCPP_STRING errs;
-
-	if (!Json::parseFromStream(reader, ifs, &obj, &errs)) {
-		wxMessageBox(wxString("Couldn't parse players.json. Empty file? \n" "Playerbase not loaded, file will be ''fixed'' upon exiting.\n" "Error string:\n    " + errs), wxString("Playerbase not loaded."));
-		return false;
-	}
-
-	const Json::Value& players = obj["players"]; // array of players
-
-	// load rating periods before players so the number of rating values per player can be corrected if neccessary
-	const Json::Value& periods = obj["rating periods"]; // array of start and end dates of all rating periods
-
-	wxDateTime start;
-	wxDateTime end;
-
-	for (unsigned int i = 0; i < periods.size(); i++) {
-		start.ParseISODate(periods[i]["start date"].asString());
-		end.ParseISODate(periods[i]["end date"].asString());
-
-		ratingPeriods.push_back(std::pair<wxDateTime, wxDateTime>(start, end));
-	}
-	std::sort(ratingPeriods.begin(), ratingPeriods.end(), comparePeriods);
-
-	//Create a player for each element in players-array and push their ID to player base with their aliases
-	for (unsigned int i = 0; i < players.size(); i++) {
-
-		std::vector<std::string> aliases; // vector containing all known aliases of the current player
-
-		// storing the players' aliases
-		for (unsigned int j = 0; j < players[i]["aliases"].size(); j++) {
-			aliases.push_back(players[i]["aliases"][j].asString());
-			//wxMessageBox(wxString("    alias: " + players[i]["aliases"][j].asString() + " pushed into alias-vector"));
-		}
-
-		std::vector<std::tuple<double, double, double>> ratingVector; // vector containing tuple (rating, deviation, volatility)... 
-																	  //for each rating period (start values -> current)
-
-		const Json::Value& ratingVals = players[i]["rating values"]; // array of current players' rating values (or rather rating values-objects)
-
-		// storing the players' rating values per rating period
-		for (unsigned int j = 0; j < ratingVals.size(); j++) {
-			ratingVector.push_back(std::make_tuple(ratingVals[j]["rating"].asDouble(), ratingVals[j]["deviation"].asDouble(), ratingVals[j]["volatility"].asDouble()));
-		}
-
-		if (players[i].isMember("visible")) {
-			addNewPlayer(aliases, &ratingVector, players[i]["visible"].asBool());
-		}
-		else {
-			addNewPlayer(aliases, &ratingVector);
-		}
-	}
-
-	ifs.close();
-
-	return ifs.good();
-}
-
-bool MainWin::saveWorld() {
-	std::ofstream ofs = std::ofstream("players.json", std::ios_base::trunc);
-
-	if (!ofs) {
-		wxMessageBox(wxString("Opening players.json/output-stream not successful. Playerbase and Rating periods will not be saved."));
-		return false;
-	}
-
-	Json::StreamWriterBuilder builder;
-	Json::Value playersJson; // to create the whole json-object to write to file
-
-	Json::Value allPlayers(Json::arrayValue);
-
-	for (auto currPlayerBasePlayer = playerBase.begin(); currPlayerBasePlayer != playerBase.end(); currPlayerBasePlayer++) { // iterate through playerbase
-		Json::Value currEntry; // to hold the entry of the currently saved player
-		Json::Value currAliases(Json::arrayValue); // create the aliases section of the player
-
-		for (std::vector<std::string>::iterator currAlias = std::get<1>(*currPlayerBasePlayer).begin(); currAlias != std::get<1>(*currPlayerBasePlayer).end(); currAlias++) { // iterate through aliases of current player
-			currAliases.append(Json::Value(*currAlias)); // filling the aliases section with the aliases of the current player
-		}
-
-		Json::Value currPlayerRatings(Json::arrayValue); // equal to the "rating values" in players.json (to save all rating values for every period)
-
-		for (auto currRatingTuple = std::get<2>(*currPlayerBasePlayer).begin(); currRatingTuple != std::get<2>(*currPlayerBasePlayer).end(); currRatingTuple++) {
-			//wxMessageBox(wxString("Adding ratings to player with first alias " + std::get<1>(*currPlayerBasePlayer)[0]));
-
-			Json::Value ratingValsToAdd; // Contains the rating values of the currently saved period
-			ratingValsToAdd["rating"] = std::get<0>(*currRatingTuple);
-			ratingValsToAdd["deviation"] = std::get<1>(*currRatingTuple);
-			ratingValsToAdd["volatility"] = std::get<2>(*currRatingTuple);
-			currPlayerRatings.append(ratingValsToAdd);
-		}
-
-		currEntry["rating values"] = currPlayerRatings;
-		currEntry["aliases"] = currAliases;
-		currEntry["visible"] = std::get<3>(*currPlayerBasePlayer);
-
-		allPlayers.append(currEntry);
-
-	}
-	playersJson["players"] = allPlayers;
-
-	Json::Value ratingPeriodDates(Json::arrayValue);
-
-	Json::Value currPeriodToAdd;
-
-	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-		//wxMessageBox(wxString("Adding rating period starting on: " + (*currPeriod).first.FormatISODate().ToStdString()));
-
-		currPeriodToAdd["start date"] = (*currPeriod).first.FormatISODate().ToStdString();
-		currPeriodToAdd["end date"] = (*currPeriod).second.FormatISODate().ToStdString();
-		ratingPeriodDates.append(currPeriodToAdd);
-	}
-
-	playersJson["rating periods"] = ratingPeriodDates;
-
-	Json::StreamWriter* writer = builder.newStreamWriter();
-	writer->write(playersJson, &ofs);
-
-	delete writer;
-
-	ofs.close();
-	return ofs.good();
-}
-
-bool MainWin::loadResults() {
-	std::ifstream ifs("results.json");
-
-	if (ifs.fail()) { // If the file does not exist yet(first time running app), it will be created on exiting the app, when saving the settings. 
-		return false;
-	}
-	Json::CharReaderBuilder reader;
-	Json::Value obj;
-	JSONCPP_STRING errs;
-
-	if (!Json::parseFromStream(reader, ifs, &obj, &errs)) {
-		wxMessageBox(wxString("Couldn't parse results.json. Empty file? \n" "Results not loaded, file will be ''fixed'' upon exiting.\n" "Error string:\n    " + errs), wxString("Results not loaded."));
-		return false;
-	}
-
-	const Json::Value& resultsLoaded = obj["results"]; // array of results consisting of the main-alias of winner and loser and date
-
-	for (auto currResult = resultsLoaded.begin(); currResult != resultsLoaded.end(); currResult++) {
-		unsigned int winnerID = playerIDByAlias((*currResult)["winner"].asString());
-		unsigned int loserID = playerIDByAlias((*currResult)["loser"].asString());
-
-		if (winnerID == -1) {
-			wxMessageBox(wxString("Unable to assign player with the following alias to a player from the playerbase: " +
-				(*currResult)["winner"].asString() + ". \n" "Please assign manually or result will be disregarded"),
-				wxString("Unexpected alias while reading results.json"));
-			winnerID = assignNewAlias((*currResult)["winner"].asString());
-		}
-
-		// We do not wanna show the assignPlayerDialog again, if it was shown for the winner and the user clicked cancel (winnerID still -1)
-		if (loserID == -1 && winnerID != -1) {
-			wxMessageBox(wxString("Unable to assign player with the following alias to a player from the playerbase: " +
-				(*currResult)["loser"].asString() + ". \n" "Please assign manually or result will be disregarded"),
-				wxString("Unexpected alias while reading results.json"));
-			loserID = assignNewAlias((*currResult)["loser"].asString());
-		}
-
-		// if one of the IDs is still -1 here or both players got assigned to the same name, skip adding the result
-		if (!(winnerID == -1 || loserID == -1 || winnerID == loserID)) {
-
-			Glicko2::Result toAdd = Glicko2::Result(winnerID, loserID);
-			wxDateTime resultsDate;
-			if (!resultsDate.ParseISODate((*currResult)["date"].asString())) {
-				wxMessageBox(wxString("Unable to parse following date: " + (*currResult)["date"].asString() + "\n" "Result will be disregarded"),
-					wxString("Unexpected date string while reading results.json"));
-			}
-			else {
-				//wxMessageBox(wxString("Result added: \n" "Winner: " + getMainAlias(winnerID) +
-				//	"\n" "Loser: " + getMainAlias(loserID) + "\n" "Date: " + resultsDate.Format(defaultFormatString)));
-				results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, resultsDate));
-			}
-		}
-		else if(winnerID == loserID && winnerID != -1) {
-			wxMessageBox(wxString("Result not added. Both aliases were assigned to the same player."));
-		}
-	}
-
-	ifs.close();
-
-	return ifs.good();
-}
-
-bool MainWin::saveResults() {
-	std::ofstream ofs = std::ofstream("results.json", std::ios_base::trunc);
-
-	if (!ofs) {
-		wxMessageBox(wxString("Opening results.json/output-stream not successful. Results will not be saved."));
-		return false;
-	}
-	Json::StreamWriterBuilder builder;
-	Json::Value resultsJson; // to create the whole json-object to write to file
-
-	Json::Value allResults(Json::arrayValue);
-
-	for (auto currResult = results.begin(); currResult != results.end(); currResult++) { // iterate through playerbase
-		Json::Value resultToAdd;
-		resultToAdd["winner"] = getMainAlias(currResult->first.getWinId());
-		resultToAdd["loser"] = getMainAlias(currResult->first.getLoseId());
-		resultToAdd["date"] = currResult->second.FormatISODate().ToStdString();
-
-		allResults.append(resultToAdd);
-	}
-
-	resultsJson["results"] = allResults;
-
-	Json::StreamWriter* writer = builder.newStreamWriter();
-	writer->write(resultsJson, &ofs);
-
-	delete writer;
-
-	ofs.close();
-	return ofs.good();
-}
-
-bool MainWin::loadSettings() {
-	std::ifstream ifs("settings.json");
-
-	if (ifs.fail()) { // If the file does not exist yet(first time running app), it will be created on exiting the app, when saving the settings. 
-		return false;
-	}
-	Json::CharReaderBuilder reader;
-	Json::Value obj;
-	JSONCPP_STRING errs;
-
-	if (!Json::parseFromStream(reader, ifs, &obj, &errs)) {
-		wxMessageBox(wxString("Couldn't parse settings.json. Empty file? \n" "Settings not loaded, default values will be used. File will be ''fixed'' upon exiting.\n" "Error string:\n    " + errs), wxString("Settings not loaded."));
-		return false;
-	}
-
-	const Json::Value& settingsLoaded = obj["settings"]; // array of settings consisting of the default values set in settings/about tab
-
-	setAbtWindow->setAPIKey(settingsLoaded["api key"].asString());
-	setAbtWindow->setIncludeForfeits(settingsLoaded["include forfeits"].asBool());
-
-	setAbtWindow->setDefaultRating(settingsLoaded["default values"]["rating"].asDouble());
-	setAbtWindow->setDefaultDeviation(settingsLoaded["default values"]["deviation"].asDouble());
-	setAbtWindow->setDefaultVolatility(settingsLoaded["default values"]["volatility"].asDouble());
-	setAbtWindow->setTau(settingsLoaded["tau"].asDouble());
-
-	ifs.close();
-
-	return ifs.good();
-
-}
-
-bool MainWin::saveSettings() {
-	std::ofstream ofs = std::ofstream("settings.json", std::ios_base::trunc);
-
-	if (!ofs) {
-		wxMessageBox(wxString("Opening settings.json/output-stream not successful. Settings will not be saved."));
-		return false;
-	}
-	Json::StreamWriterBuilder builder;
-	Json::Value settingsJson; // to create the whole json-object to write to file
-
-	Json::Value defaultVals;
-
-	defaultVals["rating"] = setAbtWindow->getDefaultRating();
-	defaultVals["deviation"] = setAbtWindow->getDefaultDeviation();
-	defaultVals["volatility"] = setAbtWindow->getDefaultVolatility();
-
-	Json::Value challongeUser;
-
-	settingsJson["settings"]["default values"] = defaultVals;
-	settingsJson["settings"]["api key"] = setAbtWindow->getAPIKey();
-	settingsJson["settings"]["include forfeits"] = setAbtWindow->getIncludeForfeits();
-	settingsJson["settings"]["tau"] = setAbtWindow->getTau();
-
-	Json::StreamWriter* writer = builder.newStreamWriter();
-	writer->write(settingsJson, &ofs);
-
-	delete writer;
-
-	ofs.close();
-	return ofs.good();
-}
-
-const std::pair<wxDateTime, wxDateTime>* MainWin::findPeriod(wxDateTime& start, wxDateTime& end) {
-	const std::pair<wxDateTime, wxDateTime>* toRet = nullptr;
-
-	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-		if (start.IsSameDate(currPeriod->first)) { // if entered periods start date is equal to one that's already entered, check...
-			if (end.IsSameDate(currPeriod->second)) { // ... if end date also is already entered (duplicate)
-				toRet = &(*currPeriod);
-				return toRet;
-			}
-		}
-	}
-	return toRet;
-}
-
-std::vector<Glicko2::Result> MainWin::getResultsInPeriod(const wxDateTime& start, const wxDateTime& end) {
-	std::vector<Glicko2::Result> toRet;
-
-	for (auto currRes = results.begin(); currRes!= results.end(); currRes++) {
-		if ((currRes->second.IsLaterThan(start) || currRes->second.IsEqualTo(start)) &&
-			(currRes->second.IsEarlierThan(end) || currRes->second.IsEqualTo(end))) {
-			toRet.push_back(currRes->first);
-		}
-	}
-
-	return toRet;
 }
 
 void MainWin::OnExit(wxCloseEvent& event)

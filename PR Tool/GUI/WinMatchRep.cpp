@@ -329,6 +329,11 @@ void WinMatchRep::removeResult(std::string winnerAlias, std::string loserAlias, 
 	}
 }
 
+void WinMatchRep::clearResultTable() {
+	matchTable->DeleteAllItems();
+	listViewItemID = 0;
+}
+
 void WinMatchRep::setMainAliases(std::vector<std::string> newAliases) {
 	wxArrayString aliasArray = wxArrayString();
 	for (auto currAlias = newAliases.begin(); currAlias != newAliases.end(); currAlias++) {

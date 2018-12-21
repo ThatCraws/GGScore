@@ -6,6 +6,7 @@ enum {
 	ID_RAT_PER_ADD_BTN,
 	ID_RAT_PER_REM_BTN,
 	ID_RAT_PER_PLA_LIST,
+	ID_RAT_PER_FIN_BTN,
 
 	// Match report tab
 	ID_MAT_REP_ADD_BTN,

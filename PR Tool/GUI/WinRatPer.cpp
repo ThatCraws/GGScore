@@ -39,25 +39,32 @@ WinRatPer::WinRatPer(wxWindow* parent, wxWindowID winid)
 	periodTable->InsertColumn(2, "End");
 	periodViewItemID = 0; // will be used to assign IDs to the added items
 
-	mainSizer->Add(periodTable, 0, wxEXPAND);
-
+	// Buttons
 	wxBoxSizer* periodBtnSizer = new wxBoxSizer(wxHORIZONTAL);
-
+	
+	// "Add rating period"-button
 	wxButton* addPerBtn = new wxButton(this, ID_RAT_PER_ADD_BTN, "Add rating period...");
 	addPerBtn->SetToolTip("Adds a period of time in which sets are considered for one iteration. Should include at least 10-15 sets.");
 	addPerBtn->SetDefault();
-
+	// "Remove rating period"-button
 	wxButton* remPerBtn = new wxButton(this, ID_RAT_PER_REM_BTN, "Remove rating period");
 	remPerBtn->SetToolTip("Removes selected rating period, updating ratings to exclude sets from that time.");
 
+	// "Finalize ratings"-button (not in the btnSizer because located below the other buttons
+	wxButton* finalizeBtn = new wxButton(this, ID_RAT_PER_FIN_BTN, "Finalize ratings...");
+
+	// Bind methods to controls
 	Bind(wxEVT_BUTTON, &WinRatPer::OnBtnAddPer, this, ID_RAT_PER_ADD_BTN);
 	Bind(wxEVT_BUTTON, &WinRatPer::OnBtnRemPer, this, ID_RAT_PER_REM_BTN);
+	Bind(wxEVT_BUTTON, &WinRatPer::OnBtnFinalize, this, ID_RAT_PER_FIN_BTN);
 	Bind(wxEVT_LIST_COL_CLICK, &WinRatPer::OnColumnClick, this, ID_RAT_PER_PLA_LIST);
 
 	periodBtnSizer->Add(addPerBtn);
 	periodBtnSizer->Add(remPerBtn);
 
+	mainSizer->Add(periodTable, 0, wxEXPAND);
 	mainSizer->Add(periodBtnSizer, 0, wxALIGN_CENTER);
+	mainSizer->Add(finalizeBtn, 0, wxALIGN_CENTER);
 	/*
 		this -> mainSizer	-> ratingTable
 							-> periodTable
@@ -156,6 +163,23 @@ void WinRatPer::OnBtnRemPer(wxCommandEvent& event) {
 	std::pair<wxDateTime, wxDateTime>* data = new std::pair<wxDateTime, wxDateTime>(start, end);
 	event.SetClientData(data);
 	event.Skip();
+}
+
+void WinRatPer::OnBtnFinalize(wxCommandEvent& event) {
+	wxMessageDialog* warnDialog = new wxMessageDialog(this, wxString(
+		"You are about to finalize the ratings. This will remove all existing results and rating periods and set the current "
+		"ratings as new starting value for every player. "
+		"The current ratings will NOT be affected, but you will not be able to change the currently existing results. \n"
+		"The set/wins/losses-count and win% will also be reset. \n"
+	"The main reason to do this is to clean up the table of reported results, when the rating periods are over."), wxString("About to remove results"), wxYES_NO | wxCANCEL | wxICON_INFORMATION);
+
+	switch (warnDialog->ShowModal()) {
+	case wxID_YES:
+		event.Skip();
+	case wxID_NO:
+	case wxID_CANCEL:
+		warnDialog->Destroy();
+	}
 }
 
 int wxCALLBACK sortMyPlayers(wxIntPtr item1, wxIntPtr item2, wxIntPtr sortData) {
