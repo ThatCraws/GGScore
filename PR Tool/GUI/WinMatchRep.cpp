@@ -39,7 +39,7 @@ WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id)
 	resultBtnSizer->Add(addResultBtn);
 	resultBtnSizer->Add(remResultBtn);
 
-	mainSizer->Add(resultBtnSizer, 0, wxALIGN_CENTER); // After buttons are added, insert sizer into mainSizer
+	mainSizer->Add(resultBtnSizer, 0, wxALIGN_CENTER);
 
 	wxBoxSizer* importBtnSizer = new wxBoxSizer(wxHORIZONTAL);
 
@@ -47,8 +47,19 @@ WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id)
 	importBtn->SetToolTip(wxString("Import a challonge bracket by URL"));
 
 	importBtnSizer->Add(importBtn);
-
 	mainSizer->Add(importBtnSizer, 0, wxALIGN_CENTER);
+
+	// ------------ Info text, colored forfeits ------------
+	wxBoxSizer* infoSizer = new wxBoxSizer(wxHORIZONTAL);
+	wxWindow* sampleColor = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxSize(20, 20));
+	sampleColor->SetBackgroundColour(*wxRED);
+	sampleColor->Refresh();
+	wxStaticText* infoTxt = new wxStaticText(this, wxID_ANY, wxString(" = Forfeited "));
+
+	infoSizer->Add(sampleColor);
+	infoSizer->Add(infoTxt);
+
+	mainSizer->Add(infoSizer, 0, wxALIGN_RIGHT);
 
 	// bind methods
 	Bind(wxEVT_BUTTON, &WinMatchRep::OnBtnAdd, this, ID_MAT_REP_ADD_BTN);
@@ -100,6 +111,16 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 
 	resSizer->Add(playerSelSizer, 0, wxCENTER);
 
+	// ------------ Forfeit checkbox ------------
+	wxBoxSizer* forfeitSizer = new wxBoxSizer(wxHORIZONTAL);
+	wxCheckBox* forfeit = new wxCheckBox(addResDialog, wxID_ANY, wxString("Win/loss by Forfeit"), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
+	forfeit->SetValue(false);
+	forfeitSizer->Add(forfeit);
+
+	resSizer->AddSpacer(5);
+	resSizer->Add(forfeitSizer, 0, wxALIGN_CENTER);
+	forfeitSizer->AddSpacer(25);
+
 	// ------------ Date Picker ------------ 
 
 	wxCalendarCtrl* datePick = new wxCalendarCtrl(addResDialog, wxID_ANY);
@@ -147,14 +168,14 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 
 	// String alias for both players and the winning party
 
-	std::tuple<std::string, std::string, wxDateTime>* data = new std::tuple<std::string, std::string, wxDateTime>();
+	std::tuple<std::string, std::string, wxDateTime, bool>* data = new std::tuple<std::string, std::string, wxDateTime, bool>();
 	
 	// Winner is first in vector
 	if (p1Won->GetValue()) {
-		*data = std::make_tuple(player1->GetValue().ToStdString(), player2->GetValue().ToStdString(), datePick->GetDate());
+		*data = std::make_tuple(player1->GetValue().ToStdString(), player2->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue());
 	}
 	else {
-		*data = std::make_tuple(player2->GetValue().ToStdString(), player1->GetValue().ToStdString(), datePick->GetDate());
+		*data = std::make_tuple(player2->GetValue().ToStdString(), player1->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue());
 	}
 
 	addResDialog->Destroy();
@@ -269,14 +290,17 @@ void WinMatchRep::sortResultTable() {
 	}
 }
 
-void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date) {
+void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit) {
 	matchTable->InsertItem(listViewItemID, wxString(date.Format(defaultFormatString)));
 	matchTable->SetItem(listViewItemID, 1, wxString(winnerAlias));
 	matchTable->SetItem(listViewItemID, 2, wxString(loserAlias));
 
 	// sorting 
 	matchTable->SetItemData(listViewItemID, listViewItemID);
-	//sortResultTable(); don't sort everytime because it slows down the startup immensely. 
+
+	if (forfeit) {
+		matchTable->SetItemBackgroundColour(listViewItemID, *wxRED);
+	}
 
 	listViewItemID++;
 }

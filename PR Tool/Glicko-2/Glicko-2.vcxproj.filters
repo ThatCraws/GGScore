@@ -35,10 +35,10 @@
     <ClInclude Include="glkPlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="glkWorld.h">
+    <ClInclude Include="glkResult.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="glkResult.h">
+    <ClInclude Include="glkWorld.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

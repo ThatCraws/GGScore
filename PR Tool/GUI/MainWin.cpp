@@ -41,20 +41,27 @@ struct MainWin::Player {
 	bool visible;
 };
 
+struct MainWin::Result {
+	Glicko2::Result result;
+	wxDateTime date;
+	bool forfeit;
+};
+
 // Helper functions (has to be up here to be read before ratingPeriods-set is initialized)
 bool comparePeriods(const std::pair<wxDateTime, wxDateTime>& periodOne, const std::pair<wxDateTime, wxDateTime>& periodTwo) {
 	return (periodOne.first.IsEarlierThan(periodTwo.first));
 }
-// to sort results by date
-bool compareResultDates(const std::pair<Glicko2::Result, wxDateTime >& resultOne, const std::pair<Glicko2::Result, wxDateTime >& resultTwo) {
-	return resultOne.second.IsEarlierThan(resultTwo.second);
+
+// to sort results by date (MainWin-scope to be able to access results-struct)
+bool compareResultDates(const MainWin::Result& resultOne, const MainWin::Result& resultTwo) {
+	return resultOne.date.IsEarlierThan(resultTwo.date);
 }
 
 MainWin::MainWin()
 	: wxFrame(NULL, wxID_ANY, wxString("GGScore"))
 {
 	// initialize set of results with compare-function for sorting by date
-	results = std::multiset<std::pair<Glicko2::Result, wxDateTime>, bool(*)(const std::pair<Glicko2::Result, wxDateTime >&, const std::pair<Glicko2::Result, wxDateTime >&)>(&compareResultDates);
+	results = std::multiset<Result, bool(*)(const Result&, const Result&)>(&compareResultDates);
 
 	/*
 		The GUI is made of sizers and derivations of wxWindow, the hierarchy is as follows:
@@ -97,7 +104,7 @@ MainWin::MainWin()
 
 	// insert loaded results into GUI
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
-		matchWindow->addResult(getMainAlias(currResult->first.getWinId()), getMainAlias(currResult->first.getLoseId()), currResult->second);
+		matchWindow->addResult(getMainAlias(currResult->result.getWinId()), getMainAlias(currResult->result.getLoseId()), currResult->date, currResult->forfeit);
 	}
 	matchWindow->sortResultTable();
 
@@ -123,6 +130,8 @@ MainWin::MainWin()
 	Bind(wxEVT_CHECKBOX, &MainWin::OnPlayerEditToggleVisibility, this, ID_PLA_EDIT_HIDE_PLA_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditPlayerRemBtn, this, ID_PLA_EDIT_REM_BTN);
 
+	// Event not handled in Settings/About tba
+	Bind(wxEVT_CHECKBOX, &MainWin::OnSetAbtIncludeBox, this, ID_SET_ABT_INC_BOX);
 }
 
 void MainWin::finalize() {
@@ -187,13 +196,13 @@ void MainWin::recalculateAllPeriods() {
 
 	} // World with all players on their starting values created
 
-		// recreate results with new IDs
-	auto newResults = std::multiset<std::pair<Glicko2::Result, wxDateTime>, bool(*)(const std::pair<Glicko2::Result, wxDateTime >&, const std::pair<Glicko2::Result, wxDateTime >&)>(&compareResultDates);
+	// recreate results with new IDs
+	auto newResults = std::multiset<Result, bool(*)(const Result&, const Result&)>(&compareResultDates);
 	// Go through results
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
 		// remember old winner's and loser's ID
-		unsigned int oldNewWinId = currResult->first.getWinId();
-		unsigned int oldNewLoseId = currResult->first.getLoseId();
+		unsigned int oldNewWinId = currResult->result.getWinId();
+		unsigned int oldNewLoseId = currResult->result.getLoseId();
 		// assign new ID
 		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
 			if (currId->first == oldNewWinId) {
@@ -206,14 +215,20 @@ void MainWin::recalculateAllPeriods() {
 
 		Glicko2::Result newResult = Glicko2::Result(oldNewWinId, oldNewLoseId);
 
-		newResults.insert(std::pair<Glicko2::Result, wxDateTime>(newResult, currResult->second));
+		Result toAdd;
+		toAdd.result = newResult;
+		toAdd.date = currResult->date;
+		toAdd.forfeit = currResult->forfeit;
+		newResults.insert(toAdd);
 	}
 
 	results.swap(newResults);
 
 	// Apply algorithm to all results in rating-periods
 	for (unsigned int i = 0; i < ratingPeriods.size() ; i++) { // Iterate over rating periods
-		std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(ratingPeriods[i].first, ratingPeriods[i].second); // collect all results in current rating period
+		// collect all results in current rating period (only include forfeits, if "include forfeits in rating"-option is checked)
+		std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(ratingPeriods[i].first, ratingPeriods[i].second, setAbtWindow->getIncludeForfeits());
+
 		Glicko2::glicko(relevantResults); // use Glicko-2 algorithm for the rating period
 
 		// Now update local playerBase by updating the rating values
@@ -234,7 +249,7 @@ void MainWin::recalculateAllPeriods() {
 			unsigned int wins = 0;
 			unsigned int losses = 0;
 			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
 				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
 					if (currPlayer->id == currResult->getWinId()) {
 						wins++;
@@ -280,12 +295,12 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 	}
 
 	// recreate results with new IDs
-	auto newResults = std::multiset<std::pair<Glicko2::Result, wxDateTime>, bool(*)(const std::pair<Glicko2::Result, wxDateTime >&, const std::pair<Glicko2::Result, wxDateTime >&)>(&compareResultDates);
+	auto newResults = std::multiset<Result, bool(*)(const Result&, const Result&)>(&compareResultDates);
 	// Go through results
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
 		// remember old winner's and loser's ID
-		unsigned int oldNewWinId = currResult->first.getWinId();
-		unsigned int oldNewLoseId = currResult->first.getLoseId();
+		unsigned int oldNewWinId = currResult->result.getWinId();
+		unsigned int oldNewLoseId = currResult->result.getLoseId();
 		// assign new ID
 		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
 			if (currId->first == oldNewWinId) {
@@ -298,7 +313,12 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 
 		Glicko2::Result newResult = Glicko2::Result(oldNewWinId, oldNewLoseId);
 
-		newResults.insert(std::pair<Glicko2::Result, wxDateTime>(newResult, currResult->second));
+		Result toAdd;
+		toAdd.result = newResult;
+		toAdd.date = currResult->date;
+		toAdd.forfeit = currResult->forfeit;
+
+		newResults.insert(toAdd);
 	}
 
 	results.swap(newResults);
@@ -309,7 +329,7 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 
 	// Iterate over ratingPeriods-set leaving the periods before this one
 	for (auto currPeriod = ratingPeriods.begin() + (index++); currPeriod != ratingPeriods.end(); currPeriod++) {
-		relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+		relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
 		// Apply glicko for those results
 		if (!relevantResults.empty()) {
 			Glicko2::glicko(relevantResults);
@@ -419,11 +439,11 @@ void MainWin::removePlayer(unsigned int id) {
 			// remove all results including the player
 			auto currResult = results.begin();
 			for (; currResult != results.end(); ) {
-				if (currResult->first.getWinId() == id || currResult->first.getLoseId() == id) {
-					std::string winnerAlias = getMainAlias(currResult->first.getWinId());
-					std::string loserAlias = getMainAlias(currResult->first.getLoseId());
+				if (currResult->result.getWinId() == id || currResult->result.getLoseId() == id) {
+					std::string winnerAlias = getMainAlias(currResult->result.getWinId());
+					std::string loserAlias = getMainAlias(currResult->result.getLoseId());
 
-					matchWindow->removeResult(winnerAlias, loserAlias, currResult->second);
+					matchWindow->removeResult(winnerAlias, loserAlias, currResult->date); //TODO check back here if forfeit-field is needed
 
 					currResult = results.erase(currResult);
 				}
@@ -462,13 +482,15 @@ const std::pair<wxDateTime, wxDateTime>* MainWin::findPeriod(wxDateTime& start, 
 	return toRet;
 }
 
-std::vector<Glicko2::Result> MainWin::getResultsInPeriod(const wxDateTime& start, const wxDateTime& end) {
+std::vector<Glicko2::Result> MainWin::getResultsInPeriod(const wxDateTime& start, const wxDateTime& end, bool includeForfeits) {
 	std::vector<Glicko2::Result> toRet;
 
 	for (auto currRes = results.begin(); currRes != results.end(); currRes++) {
-		if ((currRes->second.IsLaterThan(start) || currRes->second.IsEqualTo(start)) &&
-			(currRes->second.IsEarlierThan(end) || currRes->second.IsEqualTo(end))) {
-			toRet.push_back(currRes->first);
+		if ((currRes->date.IsLaterThan(start) || currRes->date.IsEqualTo(start)) &&
+			(currRes->date.IsEarlierThan(end) || currRes->date.IsEqualTo(end))) {
+			if ((!currRes->forfeit) || includeForfeits) {
+				toRet.push_back(currRes->result);
+			}
 		}
 	}
 
@@ -758,17 +780,19 @@ bool MainWin::loadResults() {
 
 		// if one of the IDs is still -1 here or both players got assigned to the same name, skip adding the result
 		if (!(winnerID == -1 || loserID == -1 || winnerID == loserID)) {
-
-			Glicko2::Result toAdd = Glicko2::Result(winnerID, loserID);
+			Glicko2::Result theResult = Glicko2::Result(winnerID, loserID);
 			wxDateTime resultsDate;
 			if (!resultsDate.ParseISODate((*currResult)["date"].asString())) {
 				wxMessageBox(wxString("Unable to parse following date: " + (*currResult)["date"].asString() + "\n" "Result will be disregarded"),
 					wxString("Unexpected date string while reading results.json"));
 			}
 			else {
-				//wxMessageBox(wxString("Result added: \n" "Winner: " + getMainAlias(winnerID) +
-				//	"\n" "Loser: " + getMainAlias(loserID) + "\n" "Date: " + resultsDate.Format(defaultFormatString)));
-				results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, resultsDate));
+				Result toAdd;
+				toAdd.result = theResult;
+				toAdd.date = resultsDate;
+				toAdd.forfeit = (*currResult)["forfeit"].asBool();
+
+				results.insert(toAdd);
 			}
 		}
 		else if (winnerID == loserID && winnerID != -1) {
@@ -795,9 +819,10 @@ bool MainWin::saveResults() {
 
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) { // iterate through playerbase
 		Json::Value resultToAdd;
-		resultToAdd["winner"] = getMainAlias(currResult->first.getWinId());
-		resultToAdd["loser"] = getMainAlias(currResult->first.getLoseId());
-		resultToAdd["date"] = currResult->second.FormatISODate().ToStdString();
+		resultToAdd["winner"] = getMainAlias(currResult->result.getWinId());
+		resultToAdd["loser"] = getMainAlias(currResult->result.getLoseId());
+		resultToAdd["date"] = currResult->date.FormatISODate().ToStdString();
+		resultToAdd["forfeit"] = currResult->forfeit;
 
 		allResults.append(resultToAdd);
 	}
@@ -982,7 +1007,7 @@ void MainWin::OnRatPerFinBtn(wxCommandEvent& event) {
 // Match report tab
 void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	// resultTuple: 0: winner, 1: loser, 2: date
-	std::tuple<std::string, std::string, wxDateTime>* resultTuple = (std::tuple<std::string, std::string, wxDateTime>*)event.GetClientData();
+	std::tuple<std::string, std::string, wxDateTime, bool>* resultTuple = (std::tuple<std::string, std::string, wxDateTime, bool>*)event.GetClientData();
 	if (resultTuple == nullptr) {
 		wxMessageBox(wxString("Result could not be inserted."), wxString("Invalid result"));
 		delete resultTuple;
@@ -1022,8 +1047,13 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 
 	Glicko2::Result resultToAdd = Glicko2::Result(winID, loseID);
 
-	results.insert(std::pair<Glicko2::Result, wxDateTime>(resultToAdd, std::get<2>(*resultTuple)));
-	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple));
+	Result toAdd;
+	toAdd.result = resultToAdd;
+	toAdd.date = std::get<2>(*resultTuple);
+	toAdd.forfeit = std::get<3>(*resultTuple);
+
+	results.insert(toAdd);
+	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple), toAdd.forfeit);
 	matchWindow->sortResultTable();
 
 	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
@@ -1043,11 +1073,11 @@ void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
 	// Go through results until result to be removed is found
 	for(auto currResult = results.begin(); currResult != results.end(); currResult++) {
 		// compare Dates first
-		if (currResult->second.IsSameDate(std::get<2>(*data))) {
+		if (currResult->date.IsSameDate(std::get<2>(*data))) {
 			// compare winner alias
-			if (getMainAlias(currResult->first.getWinId()) == std::get<0>(*data)) {
+			if (getMainAlias(currResult->result.getWinId()) == std::get<0>(*data)) {
 				// compare loser alias
-				if (getMainAlias(currResult->first.getLoseId()) == std::get<1>(*data)) {
+				if (getMainAlias(currResult->result.getLoseId()) == std::get<1>(*data)) {
 					results.erase(currResult);
 					matchWindow->removeResult();
 
@@ -1204,7 +1234,7 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 			// to store date and create result in the end
 			wxDateTime dateOfMatch;
 
-			// if the set is not forfeited include it (if there's a negative value in the results like -1-0, there'll always be more than one '-')
+			// if the set is not forfeited (if there's a negative value in the results like -1-0, there'll always be more than one '-')
 			if (!(currMatch["forfeited"].asBool() 
 				|| std::count(scoreString.begin(), scoreString.end(), '-') > 1)) {
 
@@ -1241,21 +1271,33 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 						// set winner and loser by scores
 						if (std::stoi(p1Score) > std::stoi(p2Score)) {
 							// add results to result-collection-thingy(set, a set of sets, ha!)
-							Glicko2::Result toAdd = Glicko2::Result(p1Id, p2Id);
-							results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, dateOfMatch));
+							Glicko2::Result resultToAdd = Glicko2::Result(p1Id, p2Id);
+
+							Result toAdd;
+							toAdd.result = resultToAdd;
+							toAdd.date = dateOfMatch;
+							toAdd.forfeit = false;
+
+							results.insert(toAdd);
 							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfMatch);
 						}
 						else {
 							// add results to result-collection-thingy(set, a set of sets, ha!)
-							Glicko2::Result toAdd = Glicko2::Result(p2Id, p1Id);
-							results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, dateOfMatch));
+							Glicko2::Result resultToAdd = Glicko2::Result(p2Id, p1Id);
+
+							Result toAdd;
+							toAdd.result = resultToAdd;
+							toAdd.date = dateOfMatch;
+							toAdd.forfeit = false;
+
+							results.insert(toAdd);
 							matchWindow->addResult(getMainAlias(p2Id), getMainAlias(p1Id), dateOfMatch);
 						}
 					}
 				}
 			}
-			// if match is forfeited and we wanna include forfeits
-			else if (setAbtWindow->getIncludeForfeits()) {
+			// if match is forfeited, add as forfeited match
+			else {
 				unsigned int winId = currMatch["winner_id"].asUInt();
 				unsigned int loseId = currMatch["loser_id"].asUInt();
 
@@ -1279,9 +1321,15 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 						dateOfMatch.ParseFormat(wxString(currMatch["completed_at"].asString().substr(0, 10)), wxString("%Y-%m-%d"));
 
 						// add results to result-collection-thingy(set, a set of sets, ha!)
-						Glicko2::Result toAdd = Glicko2::Result(winId, loseId);
-						results.insert(std::pair<Glicko2::Result, wxDateTime>(toAdd, dateOfMatch));
-						matchWindow->addResult(getMainAlias(winId), getMainAlias(loseId), dateOfMatch);
+						Glicko2::Result resultToAdd = Glicko2::Result(winId, loseId);
+
+						Result toAdd;
+						toAdd.result = resultToAdd;
+						toAdd.date = dateOfMatch;
+						toAdd.forfeit = true;
+
+						results.insert(toAdd);
+						matchWindow->addResult(getMainAlias(winId), getMainAlias(loseId), dateOfMatch, true);
 					}
 				}
 			}
@@ -1484,6 +1532,10 @@ void MainWin::OnPlayerEditPlayerRemBtn(wxCommandEvent& event) {
 			return;
 		}
 	}
+}
+
+void MainWin::OnSetAbtIncludeBox(wxCommandEvent& event) {
+	recalculateAllPeriods();
 }
 
 void MainWin::OnExit(wxCloseEvent& event)

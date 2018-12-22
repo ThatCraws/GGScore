@@ -19,6 +19,7 @@ namespace Glicko2 {
 			loseId		the internal ID of the loser
 		*/
 		Result(unsigned int pWinId, unsigned int pLoseId);
+		Result(); //default constructor not containing any players(real result) yet
 
 		// getters and setters
 		unsigned int getWinId() const;

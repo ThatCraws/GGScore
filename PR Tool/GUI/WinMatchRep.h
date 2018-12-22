@@ -10,7 +10,7 @@ class WinMatchRep : public wxPanel
 public:
 	WinMatchRep(wxWindow* parent, wxWindowID id = wxID_ANY);
 
-	void addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date);
+	void addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit = false);
 	void removeResult();
 	void removeResult(std::string winnerAlias, std::string loserAlias, const wxDateTime& date);
 	void clearResultTable();
@@ -31,5 +31,6 @@ private:
 	void OnBtnAdd(wxCommandEvent& event);
 	void OnBtnRem(wxCommandEvent& event);
 	void OnColumnClick(wxListEvent& event);
+	void OnDraw(wxPaintEvent& event);
 };
 #endif

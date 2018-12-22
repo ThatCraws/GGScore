@@ -18,17 +18,27 @@ class MainWin : public wxFrame
 public:
 	MainWin();
 
+	// this struct has to be here, to be accessible by the sort-method of the result-set containing these results
+	/* ------------ struct Result ------------
+	Represents a result and holds the Glicko-2 Result, date of the match and if it was a forfeit.
+
+	fields:
+		result (Glicko-2::Result)
+		date (wxDateTime)
+		forfeit (bool)
+	*/
+	struct Result;
 private:
 	// Structs first, so they can be used as parameters/types
 
-		/* ------------ struct Rating ------------
+	/* ------------ struct Rating ------------
 	Represents a rating holding the actual rating value, volatility and deviation.
 
 	fields:
 		rating (double)
 		deviation (double)
 		volatility (double)
-*/
+	*/
 	struct Rating;
 
 	/* ------------ struct Player ------------
@@ -42,8 +52,6 @@ private:
 	*/
 	struct Player;
 
-
-	// TODO save the wins and losses from previous rating periods (before finalizing) per player to set the wins/losses/win%-fields in periodWindow.
 	void finalize();
 
 	// actually calculating the ratings
@@ -72,70 +80,72 @@ private:
 	void removePlayer(unsigned int id);
 
 	/* ------------ findPeriod ------------
-Looks for a given period of time in the rating periods-vector and returns it
+	Looks for a given period of time in the rating periods-vector and returns it
 
-Parameter:
-	start	start date of the period
-	end		end date of the period
+	Parameter:
+		start	start date of the period
+		end		end date of the period
 
-Return:
-	The found date as pointer or Nullptr if not found
-*/
+	Return:
+		The found date as pointer or Nullptr if not found
+	*/
 	const std::pair<wxDateTime, wxDateTime>* findPeriod(wxDateTime& start, wxDateTime& end);
 	
 	/* ------------ getResultsInPeriod ------------
-Returns all Results that happened within the given time frame(after or on the "start" and before or on "end").
+	Returns all Results that happened within the given time frame(after or on the "start" and before or on "end").
+	Optionally, forfeited matches can be excluded by passing the appropriate includeForfeits argument.
 
-Parameter:
-	start	start date of the period
-	end		end date of the period
+	Parameter:
+		start				start date of the period
+		end					end date of the period
+		includeForfeits		will include the results, that are forfeited (according to the result-struct's "forfeit"-field), if true
 
-Return:
-	A vector of Glicko-2 Results that where entered to occur (or rather added to the results-vector with a date) within the given time frame.
-*/
-	std::vector<Glicko2::Result> getResultsInPeriod(const wxDateTime& start, const wxDateTime& end);
+	Return:
+		A vector of Glicko-2 Results that where entered to occur (or rather added to the results-vector with a date) within the given time frame.
+	*/
+	std::vector<Glicko2::Result> getResultsInPeriod(const wxDateTime& start, const wxDateTime& end, bool includeForfeits = true);
 
 
 	/* ------------ playerIDByAlias ------------
-Looks for a given player's alias and returns its ID or -1 if it cant' be found.
+	Looks for a given player's alias and returns its ID or -1 if it cant' be found.
 
-Parameter:
-	alias	The alias of the player to search for
+	Parameter:
+		alias	The alias of the player to search for
 
-Return:
-	the found player's ID or -1 if it can't be found
-*/
+	Return:
+		the found player's ID or -1 if it can't be found
+	*/
 	unsigned int playerIDByAlias(std::string alias);
 
 	/* ------------ getPlayersAliases ------------
-Returns all the known aliases of the player with the given ID.
+	Returns all the known aliases of the player with the given ID.
 
-Parameter:
-	id	The ID of the player whose aliases to return.
-
-Return:
-	A vector of strings representing the players' aliases or an empty vector, if the ID could not be found.
-*/
+	Parameter:
+		id	The ID of the player whose aliases to return.
+	
+	Return:
+		A vector of strings representing the players' aliases or an empty vector, if the ID could not be found.
+	*/
 	std::vector<std::string> getPlayersAliases(unsigned int id);
 
 	/* ------------ getMainAlias ------------
-Returns the display alias of the player with the given ID.
+	Returns the display alias of the player with the given ID.
 
-Parameter:
-	id	The ID of the player whose aliases to return.
+	Parameter:
+		id	The ID of the player whose aliases to return.
 
-Return:
-	A string representing the players' main (display) alias or an empty string, if the ID could not be found.
-*/
+	Return:
+		A string representing the players' main (display) alias or an empty string, if the ID could not be found.
+	*/
 	std::string getMainAlias(unsigned int id);
 
 	/* ------------ retrieveMainAliases ------------
-Returns all the known display aliases of the players in the playerBase.
-Mainly used to update the choice of aliases in the "Player Edit"-tab.
+	Returns all the known display aliases of the players in the playerBase.
+	Mainly used to update the choice of aliases in the "Player Edit"-tab.
 
-Return:
-	A vector of strings representing the players' display aliases or an empty vector, if no players exist.
-*/
+	Return:
+		A vector of strings representing the players' display aliases or an empty vector, if no players exist.
+	*/
 	std::vector<std::string> retrieveMainAliases();
 
 	/* ------------ assignNewAlias ------------
@@ -214,6 +224,8 @@ Return:
 	void OnPlayerEditAliasMainBtn(wxCommandEvent& event);
 	void OnPlayerEditToggleVisibility(wxCommandEvent& event);
 	void OnPlayerEditPlayerRemBtn(wxCommandEvent& event);
+	// Settings/About tab
+	void OnSetAbtIncludeBox(wxCommandEvent& event);
 
 	void OnExit(wxCloseEvent& event);
 
@@ -236,14 +248,11 @@ Return:
 						second: end date (wxDateTime)
 	*/
 	std::vector<std::pair<wxDateTime, wxDateTime>> ratingPeriods;
-	/* ------------ results ------------
-	Stores the results consisting of the Glicko-result object itself and the date the match happened ordered by the date from oldest(first) to newest(last).
 
-	results-element -> result-pair
-						first: Result (Glicko2::Result)
-						second: Date (wxDateTime)
+	/* ------------ results ------------
+	Stores the results ordered by the date from oldest(first) to newest(last).
 	*/
-	std::multiset<std::pair<Glicko2::Result, wxDateTime>, bool(*)(const std::pair<Glicko2::Result, wxDateTime >&, const std::pair<Glicko2::Result, wxDateTime >&)> results;
+	std::multiset<Result, bool(*)(const Result&, const Result&)> results;
 
 };
 

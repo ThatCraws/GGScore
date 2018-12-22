@@ -28,8 +28,8 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 	challGridSizer->Add(keyVal);
 
 	// ------------ Include forfeits ------------
-	forfeitCheck = new wxCheckBox(this, wxID_ANY, wxString("Include forfeits: "), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
-	forfeitCheck->SetToolTip(wxString("Include forfeited matches, when importing challonge-bracket(will not affect already imported results)"));
+	forfeitCheck = new wxCheckBox(this, ID_SET_ABT_INC_BOX, wxString("Include forfeits in rating: "), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
+	forfeitCheck->SetToolTip(wxString("Include forfeited matches, when calculating rating"));
 
 	challGridSizer->Add(forfeitCheck);
 		
