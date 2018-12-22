@@ -2,8 +2,8 @@ TODO
 								
 - Use const qualifier where possible
 
-- Change the entries of the playerBase-vector to structs. Same for results and periods maybe... (just two fields, so no priority...
-  ...or maybe even uneccessary).
+- Change stuff to structs. Maybe results(Result, date), ratingPeriods(start, end)...
+	...and the ratingVector in the (now existing) player-struct (rating, deviation, volatility)
 
 - When finalizing ratings save the wins and losses per player (another field in the player-tuple? D=) to display the stats in the...
   ..."rating periods"-tab correctly.

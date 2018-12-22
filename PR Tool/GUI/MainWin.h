@@ -201,6 +201,19 @@ Return:
 
 	// TODO make those vectors of structs(?)
 	/* ------------ playerBase ------------
+	Represents a player and holds their IDs, known aliases and rating values per period.
+
+	fields:
+		id (unsigned int)
+		aliases (vector<string>)
+		ratings (vector<tuple<double, double, double>>)
+							0: rating
+							1: deviation
+							2: volatility
+		visible (bool) (in the ranking table. true: shown, false: hidden)
+	*/
+	struct Player;
+	/* ------------ playerBase ------------
 	"Maps" player IDs to their known aliases and rating values per period.
 
 	playerBase[Player] -> player-tuple
@@ -212,7 +225,8 @@ Return:
 							2: volatility
 						3: visibility (in the ranking table. true: shown, false: hidden)
 	*/
-	std::vector<std::tuple<unsigned int, std::vector<std::string>, std::vector<std::tuple<double, double, double>>, bool>> playerBase;
+	//std::vector<std::tuple<unsigned int, std::vector<std::string>, std::vector<std::tuple<double, double, double>>, bool>> playerBase;
+	std::vector<Player> playerBase;
 	/* ------------ ratingPeriods ------------
 	Stores rating periods consisting of start and end date ordered from oldest(first) to newest(last).
 
