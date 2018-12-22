@@ -36,6 +36,8 @@ struct MainWin::Player {
 	unsigned int id;
 	std::vector<std::string> aliases;
 	std::vector<Rating> ratings;
+	unsigned int wins; // Wins in previous (pre-finalizing) periods
+	unsigned int losses; // Losses in previous (pre-finalizing) periods
 	bool visible;
 };
 
@@ -126,6 +128,22 @@ MainWin::MainWin()
 void MainWin::finalize() {
 	// set the current ratings as first element in the rating-vectors and delete the other entries.
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		// Count wins and losses per player and add to the wins/losses-field in their struct
+		unsigned int wins = 0;
+		unsigned int losses = 0;
+		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+			std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
+				if (currPlayer->id == currResult->getWinId()) {
+					wins++;
+				}
+				else if (currPlayer->id == currResult->getLoseId()) {
+					losses++;
+				}
+			}
+		}
+		currPlayer->wins += wins;
+		currPlayer->losses += losses;
 
 		currPlayer->ratings[0] = currPlayer->ratings[currPlayer->ratings.size() - 1];
 		currPlayer->ratings.resize(1);
@@ -226,7 +244,7 @@ void MainWin::recalculateAllPeriods() {
 					}
 				}
 			}
-			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, wins, losses);
+			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses);
 		}
 	}
 	periodWindow->sortMatchTable();
@@ -325,14 +343,14 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 					}
 				}
 			}
-			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, wins, losses);
+			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses);
 		}
 	}
 	periodWindow->sortMatchTable();
 }
 
 
-unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector, bool visibility) {
+unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector, unsigned int wins, unsigned int losses, bool visibility) {
 	if (atLeastOneAlias.empty()) {
 		wxMessageBox(wxString("Tried to add player without alias for some reason. \n" "No player added."), wxString("Alias-list to initialize was empty"));
 		return -1;
@@ -372,6 +390,8 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 	toAdd.id = id;
 	toAdd.aliases = atLeastOneAlias;
 	toAdd.ratings = *optionalRatingVector;
+	toAdd.wins = wins;
+	toAdd.losses = losses;
 	toAdd.visible = visibility;
 
 	playerBase.push_back(toAdd);;
@@ -612,11 +632,22 @@ bool MainWin::loadWorld() {
 			ratingVector.push_back(toAdd);
 		}
 
+		// could use the default values of addPlayer, but this spares us the ifception
+		unsigned int wins = 0;
+		unsigned int losses = 0;
+
+		if (players[i].isMember("wins")) {
+			wins = players[i]["wins"].asUInt64();
+		}
+		if (players[i].isMember("losses")) {
+			losses = players[i]["losses"].asUInt64();
+		}
+
 		if (players[i].isMember("visible")) {
-			addNewPlayer(aliases, &ratingVector, players[i]["visible"].asBool());
+			addNewPlayer(aliases, &ratingVector, wins, losses, players[i]["visible"].asBool());
 		}
 		else {
-			addNewPlayer(aliases, &ratingVector);
+			addNewPlayer(aliases, &ratingVector, wins, losses);
 		}
 	}
 
@@ -659,6 +690,8 @@ bool MainWin::saveWorld() {
 		}
 
 		currEntry["rating values"] = currPlayerRatings;
+		currEntry["wins"] = currPlayerBasePlayer->wins;
+		currEntry["losses"] = currPlayerBasePlayer->losses;
 		currEntry["aliases"] = currAliases;
 		currEntry["visible"] = currPlayerBasePlayer->visible;
 
@@ -1424,7 +1457,7 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 					}
 				}
 				periodWindow->addPlayer(currPlayer->id, currPlayer->aliases[0]);
-				periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, wins, losses);
+				periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses);
 			}
 			else {
 				periodWindow->removePlayer(currPlayer->id);

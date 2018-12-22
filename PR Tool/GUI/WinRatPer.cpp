@@ -170,7 +170,6 @@ void WinRatPer::OnBtnFinalize(wxCommandEvent& event) {
 		"You are about to finalize the ratings. This will remove all existing results and rating periods and set the current "
 		"ratings as new starting value for every player. "
 		"The current ratings will NOT be affected, but you will not be able to change the currently existing results. \n"
-		"The set/wins/losses-count and win% will also be reset. \n"
 	"The main reason to do this is to clean up the table of reported results, when the rating periods are over."), wxString("About to remove results"), wxYES_NO | wxCANCEL | wxICON_INFORMATION);
 
 	switch (warnDialog->ShowModal()) {

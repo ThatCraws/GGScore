@@ -68,7 +68,7 @@ private:
 
 	// Handling adding/removing from playerbase/periods/results
 
-	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector = nullptr, bool visibility = true);
+	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector = nullptr, unsigned int wins = 0, unsigned int losses = 0, bool visibility = true);
 	void removePlayer(unsigned int id);
 
 	/* ------------ findPeriod ------------
