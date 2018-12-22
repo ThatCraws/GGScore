@@ -60,6 +60,8 @@ bool compareResultDates(const MainWin::Result& resultOne, const MainWin::Result&
 MainWin::MainWin()
 	: wxFrame(NULL, wxID_ANY, wxString("GGScore"))
 {
+	SetIcon(wxIcon(wxString("A_MYICON")));
+
 	// initialize set of results with compare-function for sorting by date
 	results = std::multiset<Result, bool(*)(const Result&, const Result&)>(&compareResultDates);
 
