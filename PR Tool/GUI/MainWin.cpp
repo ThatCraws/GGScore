@@ -24,11 +24,18 @@
 #include "AssignPlayerDialog.h"
 #include "GlobalVars.h"
 
+// Struct holding relevant information for a rating
+struct MainWin::Rating {
+	double rating;
+	double deviation;
+	double volatility;
+};
+
 // Struct holding all relevant information of a player
 struct MainWin::Player {
 	unsigned int id;
 	std::vector<std::string> aliases;
-	std::vector<std::tuple<double, double, double>> ratings;
+	std::vector<Rating> ratings;
 	bool visible;
 };
 
@@ -146,12 +153,12 @@ void MainWin::recalculateAllPeriods() {
 	for (unsigned int i = 0; i < playerBase.size(); i++) {
 
 		// Create new player in Glicko2-world with starting values and update local ID
-		std::tuple<double, double, double>& startVals = playerBase[i].ratings[0];
+		Rating& startVals = playerBase[i].ratings[0];
 
 		// remember old ID to update ID in rankingTable in Period-tab and recreate results
 		oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(playerBase[i].id, -1));
 
-		playerBase[i].id = Glicko2::createPlayer(std::get<0>(startVals), std::get<1>(startVals), std::get<2>(startVals));
+		playerBase[i].id = Glicko2::createPlayer(startVals.rating, startVals.deviation, startVals.volatility);
 		// update to map to new ID
 		oldNewIdMap[i].second = playerBase[i].id;
 
@@ -196,9 +203,9 @@ void MainWin::recalculateAllPeriods() {
 		for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) { // Iterate over playerBase
 			realPlayer = Glicko2::playerByID(currPlayer->id); // get Player-object from Glicko2-world
 			//if(nullptr)????
-			std::get<0>(currPlayer->ratings[i + 1]) = realPlayer->getRating();
-			std::get<1>(currPlayer->ratings[i + 1]) = realPlayer->getRD();
-			std::get<2>(currPlayer->ratings[i + 1]) = realPlayer->getVolatility();
+			currPlayer->ratings[i + 1].rating = realPlayer->getRating();
+			currPlayer->ratings[i + 1].deviation = realPlayer->getRD();
+			currPlayer->ratings[i + 1].volatility = realPlayer->getVolatility();
 		}
 	}
 	// Update rating period-tab rating table 
@@ -219,7 +226,7 @@ void MainWin::recalculateAllPeriods() {
 					}
 				}
 			}
-			periodWindow->updatePlayer(currPlayer->id, std::get<0>(currPlayer->ratings[currPlayer->ratings.size() - 1]), wins, losses);
+			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, wins, losses);
 		}
 	}
 	periodWindow->sortMatchTable();
@@ -246,7 +253,7 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 	for (unsigned int i = 0; i < playerBase.size(); i++) {
 		// remember old ID to update ID in rankingTable in Period-tab and recreate results
 		oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(playerBase[i].id, -1));
-		playerBase[i].id = Glicko2::createPlayer(std::get<0>(playerBase[i].ratings[index]), std::get<1>(playerBase[i].ratings[index]), std::get<2>(playerBase[i].ratings[index]));
+		playerBase[i].id = Glicko2::createPlayer(playerBase[i].ratings[index].rating, playerBase[i].ratings[index].deviation, playerBase[i].ratings[index].volatility);
 		oldNewIdMap[i].second = playerBase[i].id;
 
 		if (playerBase[i].visible) {
@@ -294,9 +301,9 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 		Glicko2::Player* currGlkPlayer;
 		for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
 			currGlkPlayer = Glicko2::playerByID(currPlayer->id);
-			std::get<0>(currPlayer->ratings[index]) = currGlkPlayer->getRating();
-			std::get<1>(currPlayer->ratings[index]) = currGlkPlayer->getRD();
-			std::get<2>(currPlayer->ratings[index]) = currGlkPlayer->getVolatility();
+			currPlayer->ratings[index].rating = currGlkPlayer->getRating();
+			currPlayer->ratings[index].deviation = currGlkPlayer->getRD();
+			currPlayer->ratings[index].volatility = currGlkPlayer->getVolatility();
 		}
 		index++;
 	}
@@ -318,23 +325,29 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 					}
 				}
 			}
-			periodWindow->updatePlayer(currPlayer->id, std::get<0>(currPlayer->ratings[currPlayer->ratings.size() - 1]), wins, losses);
+			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, wins, losses);
 		}
 	}
 	periodWindow->sortMatchTable();
 }
 
 
-unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector, bool visibility) {
+unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector, bool visibility) {
 	if (atLeastOneAlias.empty()) {
 		wxMessageBox(wxString("Tried to add player without alias for some reason. \n" "No player added."), wxString("Alias-list to initialize was empty"));
 		return -1;
 	}
 
-	std::vector<std::tuple<double, double, double>> ratingVector;
+	std::vector<Rating> ratingVector;
 	if (optionalRatingVector == nullptr) {
 
-		ratingVector.push_back(std::make_tuple(setAbtWindow->getDefaultRating(), setAbtWindow->getDefaultDeviation(), setAbtWindow->getDefaultVolatility()));
+		// create from default ratings
+		Rating toAdd;
+		toAdd.rating = setAbtWindow->getDefaultRating();
+		toAdd.deviation = setAbtWindow->getDefaultDeviation();
+		toAdd.volatility = setAbtWindow->getDefaultVolatility();
+
+		ratingVector.push_back(toAdd);
 		optionalRatingVector = &ratingVector;
 	}
 
@@ -351,8 +364,8 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 
 	// creating current player with the last(current) read rating values and...
 	// storing the players' ID
-	std::tuple<double, double, double> currentRatingValues = (*optionalRatingVector)[optionalRatingVector->size() - 1];
-	unsigned int id = Glicko2::createPlayer(std::get<0>(currentRatingValues), std::get<1>(currentRatingValues), std::get<2>(currentRatingValues));
+	Rating& currentRatingValues = (*optionalRatingVector)[optionalRatingVector->size() - 1];
+	unsigned int id = Glicko2::createPlayer(currentRatingValues.rating, currentRatingValues.deviation, currentRatingValues.volatility);
 
 	// uniting the stored ID, aliases and ratings to add them to playerBase
 	Player toAdd;
@@ -369,7 +382,7 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 	// Add player to the rating-periods rating table, if visible
 	if (visibility) {
 		periodWindow->addPlayer(id, atLeastOneAlias[0]);
-		periodWindow->updatePlayer(id, std::get<0>((*optionalRatingVector)[optionalRatingVector->size() - 1]), 0, 0);
+		periodWindow->updatePlayer(id, (*optionalRatingVector)[optionalRatingVector->size() - 1].rating, 0, 0);
 		periodWindow->sortMatchTable();
 	}
 
@@ -507,8 +520,14 @@ unsigned int MainWin::assignNewAlias(std::string aliasToAssign) {
 
 			assignDialog->Destroy();
 
-			std::vector<std::tuple<double, double, double>> startValues;
-			startValues.push_back(std::tuple<double, double, double>(assignDialog->getRating(), assignDialog->getDeviation(), assignDialog->getVolatility()));
+			std::vector<Rating> startValues;
+			// Create start Rating
+			Rating toAdd;
+			toAdd.rating = assignDialog->getRating();
+			toAdd.deviation = assignDialog->getDeviation();
+			toAdd.volatility = assignDialog->getVolatility();
+
+			startValues.push_back(toAdd);
 
 			return addNewPlayer(newPlayerAliases, &startValues);
 		}
@@ -579,14 +598,18 @@ bool MainWin::loadWorld() {
 			//wxMessageBox(wxString("    alias: " + players[i]["aliases"][j].asString() + " pushed into alias-vector"));
 		}
 
-		std::vector<std::tuple<double, double, double>> ratingVector; // vector containing tuple (rating, deviation, volatility)... 
-																	  //for each rating period (start values -> current)
+		std::vector<Rating> ratingVector; // vector containing Rating for each rating period (start values -> current)
 
 		const Json::Value& ratingVals = players[i]["rating values"]; // array of current players' rating values (or rather rating values-objects)
 
 		// storing the players' rating values per rating period
 		for (unsigned int j = 0; j < ratingVals.size(); j++) {
-			ratingVector.push_back(std::make_tuple(ratingVals[j]["rating"].asDouble(), ratingVals[j]["deviation"].asDouble(), ratingVals[j]["volatility"].asDouble()));
+			Rating toAdd;
+			toAdd.rating = ratingVals[j]["rating"].asDouble();
+			toAdd.deviation = ratingVals[j]["deviation"].asDouble();
+			toAdd.volatility = ratingVals[j]["volatility"].asDouble();
+
+			ratingVector.push_back(toAdd);
 		}
 
 		if (players[i].isMember("visible")) {
@@ -625,13 +648,13 @@ bool MainWin::saveWorld() {
 
 		Json::Value currPlayerRatings(Json::arrayValue); // equal to the "rating values" in players.json (to save all rating values for every period)
 
-		for (auto currRatingTuple = currPlayerBasePlayer->ratings.begin(); currRatingTuple != currPlayerBasePlayer->ratings.end(); currRatingTuple++) {
+		for (auto currRating = currPlayerBasePlayer->ratings.begin(); currRating != currPlayerBasePlayer->ratings.end(); currRating++) {
 			//wxMessageBox(wxString("Adding ratings to player with first alias " + std::get<1>(*currPlayerBasePlayer)[0]));
 
 			Json::Value ratingValsToAdd; // Contains the rating values of the currently saved period
-			ratingValsToAdd["rating"] = std::get<0>(*currRatingTuple);
-			ratingValsToAdd["deviation"] = std::get<1>(*currRatingTuple);
-			ratingValsToAdd["volatility"] = std::get<2>(*currRatingTuple);
+			ratingValsToAdd["rating"] = currRating->rating;
+			ratingValsToAdd["deviation"] = currRating->deviation;
+			ratingValsToAdd["volatility"] = currRating->volatility;
 			currPlayerRatings.append(ratingValsToAdd);
 		}
 
@@ -862,8 +885,7 @@ void MainWin::OnRatPerAddBtn(wxCommandEvent& event) {
 		}
 		else {
 			// just copy the last right rating values
-			std::tuple<double, double, double> ratingBeforePeriod = currPlayer->ratings[index];
-			currPlayer->ratings.insert(currPlayer->ratings.begin() + index, ratingBeforePeriod);
+			currPlayer->ratings.insert(currPlayer->ratings.begin() + index, currPlayer->ratings[index]);
 		}
 	}
 
@@ -1402,7 +1424,7 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 					}
 				}
 				periodWindow->addPlayer(currPlayer->id, currPlayer->aliases[0]);
-				periodWindow->updatePlayer(currPlayer->id, std::get<0>(currPlayer->ratings[currPlayer->ratings.size() - 1]), wins, losses);
+				periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, wins, losses);
 			}
 			else {
 				periodWindow->removePlayer(currPlayer->id);

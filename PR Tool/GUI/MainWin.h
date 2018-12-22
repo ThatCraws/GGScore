@@ -19,6 +19,30 @@ public:
 	MainWin();
 
 private:
+	// Structs first, so they can be used as parameters/types
+
+		/* ------------ struct Rating ------------
+	Represents a rating holding the actual rating value, volatility and deviation.
+
+	fields:
+		rating (double)
+		deviation (double)
+		volatility (double)
+*/
+	struct Rating;
+
+	/* ------------ struct Player ------------
+	Represents a player and holds their IDs, known aliases and rating values per period.
+
+	fields:
+		id (unsigned int)
+		aliases (vector<string>)
+		ratings (vector<struct Rating>)
+		visible (bool) (in the ranking table. true: shown, false: hidden)
+	*/
+	struct Player;
+
+
 	// TODO save the wins and losses from previous rating periods (before finalizing) per player to set the wins/losses/win%-fields in periodWindow.
 	void finalize();
 
@@ -44,7 +68,7 @@ private:
 
 	// Handling adding/removing from playerbase/periods/results
 
-	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<std::tuple<double, double, double>>* optionalRatingVector = nullptr, bool visibility = true);
+	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector = nullptr, bool visibility = true);
 	void removePlayer(unsigned int id);
 
 	/* ------------ findPeriod ------------
@@ -199,34 +223,11 @@ Return:
 	WinPlayerEdit* playerEditWindow;
 	WinSetAbt* setAbtWindow;
 
-	// TODO make those vectors of structs(?)
-	/* ------------ playerBase ------------
-	Represents a player and holds their IDs, known aliases and rating values per period.
 
-	fields:
-		id (unsigned int)
-		aliases (vector<string>)
-		ratings (vector<tuple<double, double, double>>)
-							0: rating
-							1: deviation
-							2: volatility
-		visible (bool) (in the ranking table. true: shown, false: hidden)
-	*/
-	struct Player;
-	/* ------------ playerBase ------------
-	"Maps" player IDs to their known aliases and rating values per period.
+	// Containers to represent the Glicko-2 World
 
-	playerBase[Player] -> player-tuple
-						0: ID (int)
-						1: aliases (vector of strings)
-						2: ratingvector[period] -> rating-tuple
-							0: rating
-							1: deviation
-							2: volatility
-						3: visibility (in the ranking table. true: shown, false: hidden)
-	*/
-	//std::vector<std::tuple<unsigned int, std::vector<std::string>, std::vector<std::tuple<double, double, double>>, bool>> playerBase;
 	std::vector<Player> playerBase;
+
 	/* ------------ ratingPeriods ------------
 	Stores rating periods consisting of start and end date ordered from oldest(first) to newest(last).
 
