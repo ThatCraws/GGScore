@@ -56,7 +56,7 @@ This is the main class containing the actual algorithm and using the other class
  The supplied Visual Studio project files require the following folder structure to successfully build the application:
  
  ```
- └── \
+ └── ┐
      ├── Glicko-2
      │   └── PR Tool (main git-folder)
      ├── wxWidget
