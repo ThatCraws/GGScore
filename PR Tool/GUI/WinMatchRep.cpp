@@ -322,6 +322,8 @@ void WinMatchRep::removeResult() {
 		matchTable->Select(item);
 	}
 
+	reSetItemData();
+
 	listViewItemID--;
 }
 
@@ -349,7 +351,18 @@ void WinMatchRep::removeResult(std::string winnerAlias, std::string loserAlias, 
 			matchTable->Select(item);
 		}
 
+		reSetItemData();
+
 		listViewItemID--;
+	}
+}
+
+void WinMatchRep::reSetItemData() {
+	long item = matchTable->GetNextItem(-1);
+
+	while (item != -1) {
+		matchTable->SetItemData(item, item);
+		item = matchTable->GetNextItem(item);
 	}
 }
 

@@ -7,4 +7,4 @@ TODO
 	->Then either:
 		- in the Glicko API, when a player exists and the algorithm is called get players that are NOT included in the results
 			-> recalculate*Period(s)-method has to create Players in the rating period of their first result 
-`		- or let user manage decay? Glicko has decay by definition so probably not
+		- or let user manage decay? Glicko has decay by definition so probably not

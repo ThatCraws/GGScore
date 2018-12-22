@@ -28,6 +28,8 @@ private:
 	int resultViewSortedColumn; // column to sort the result view by
 	bool resultViewDescending;
 
+	void reSetItemData();
+
 	void OnBtnAdd(wxCommandEvent& event);
 	void OnBtnRem(wxCommandEvent& event);
 	void OnColumnClick(wxListEvent& event);
