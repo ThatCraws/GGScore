@@ -9,7 +9,7 @@ The ratings are created via the Glicko-2 algorithm even though there are a few d
 The decay could be implemented in the future, but for the ties there are currently no plans of implementing that feature,
 because this tool was initially intended for Smash Bros.
 
---- Basic usage/features ---
+## Basic usage/features
 
 The general idea to use this tool is by importing tournaments from challonge.com. For this you will need a developer API key from your challonge-account.
 Then the players' names/aliases from the tournaments sets have to be associated with players. You can either associate an alias with an existing player or create a new one(when importing the first tournament you will have to create all new players of course).
@@ -23,11 +23,11 @@ Keep in mind that only results within a rating period will be used to calculate 
  This is probably a pretty common behaviour for a rating algorithm though. To avoid this you would have to supply accurate starting values, but the average user probably shouldn't (I wouldn't).
  
  
---- About the implementation ---
+## About the implementation
  
  This application consists of two modules: The Glicko-2 API, which supplies a (slightly) modified(/unfinished?) version of the Glicko-2 algorithm and the GUI supplying the user with means to use the API and visualize the results of the calculations. It also associates the IDs of the Glicko-Players with their aliases.
  
- -- Glicko-2 API --
+ ### Glicko-2 API
  
  The Glicko-2 API consists of various classes to set up the needed conditions to apply the algorithm and of course the algorithm itself:
  
@@ -42,14 +42,14 @@ This is the main class containing the actual algorithm and using the other class
  Represents a result, this class holds only the IDs for the winner and loser of that match(if you want to implement the possibility to report ties change to player 1 and 2 and save the winner separately, optimally with a bool like player1winning for example).
  Results do not get created internally neither are they stored. This class is meant to be used by the user to construct and bundle results (per rating period) and then give them to the algorithm.
  
- -- GUI --
+ ### GUI
  
  The GUI implements means for the user to use the API and display the results of the algorithm.
  It is implemented via the wxWidgets API
  To be continued...
  
  
- --- How to build ---
+ ## How to build
  
  This application uses a few APIs which will have to be built and linked before you will be able to build this project.
  The needed APIs are wxWidgets, jsoncpp and libcurl (7.62.0 used, but others should work of course, but you will have to change the path in the supplied project file, if you want to use it).
