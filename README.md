@@ -43,24 +43,36 @@ This is the main class containing the actual algorithm and using the other class
  Results do not get created internally neither are they stored. This class is meant to be used by the user to construct and bundle results (per rating period) and then give them to the algorithm.
  
  -- GUI --
+ 
  The GUI implements means for the user to use the API and display the results of the algorithm.
  It is implemented via the wxWidgets API
  To be continued...
  
  
  --- How to build ---
+ 
  This application uses a few APIs which will have to be built and linked before you will be able to build this project.
  The needed APIs are wxWidgets, jsoncpp and libcurl (7.62.0 used, but others should work of course, but you will have to change the path in the supplied project file, if you want to use it).
  The supplied Visual Studio project files require the following folder structure to successfully build the application:
+ 
  +-Glicko-2
+ 
  |  +-PR Tool (main git-folder)
+ 
  +-wxWidget
+ 
  |  +-lib
+ 
  |  +-include
+ 
  +-jsoncpp-master
+ 
  |  +-dist
+ 
  +-curl-7.62.0
+ 
  |  +-include
+ 
  |  +-lib
  
  These APIs are statically linked, only the Glicko-2 API is linked dynamically (again, only speaking for the supplied project-file).
