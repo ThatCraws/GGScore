@@ -52,7 +52,7 @@ WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id)
 	// ------------ Info text, colored forfeits ------------
 	wxBoxSizer* infoSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxWindow* sampleColor = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxSize(20, 20));
-	sampleColor->SetBackgroundColour(*wxRED);
+	sampleColor->SetBackgroundColour(*wxLIGHT_GREY);
 	sampleColor->Refresh();
 	wxStaticText* infoTxt = new wxStaticText(this, wxID_ANY, wxString(" = Forfeited "));
 
@@ -299,7 +299,7 @@ void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, con
 	matchTable->SetItemData(listViewItemID, listViewItemID);
 
 	if (forfeit) {
-		matchTable->SetItemBackgroundColour(listViewItemID, *wxRED);
+		matchTable->SetItemBackgroundColour(listViewItemID, *wxLIGHT_GREY);
 	}
 
 	listViewItemID++;
