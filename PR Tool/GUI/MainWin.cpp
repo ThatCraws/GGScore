@@ -4,7 +4,6 @@
 #endif
 
 #include <wx/notebook.h>
-#include <wx/protocol/http.h>
 #include <wx/sstream.h>
 
 #include <fstream>
@@ -132,7 +131,7 @@ MainWin::MainWin()
 	Bind(wxEVT_CHECKBOX, &MainWin::OnPlayerEditToggleVisibility, this, ID_PLA_EDIT_HIDE_PLA_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditPlayerRemBtn, this, ID_PLA_EDIT_REM_BTN);
 
-	// Event not handled in Settings/About tba
+	// Event not handled in Settings/About tab
 	Bind(wxEVT_CHECKBOX, &MainWin::OnSetAbtIncludeBox, this, ID_SET_ABT_INC_BOX);
 }
 
