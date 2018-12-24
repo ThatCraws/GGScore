@@ -54,7 +54,7 @@ This is the main class containing the actual algorithm and using the other class
  
  ```
  └── ┐
-     ├── Glicko-2
+     ├── GGScore
      │   └── .git
      │   └── PR Tool 
      ├── wxWidget
