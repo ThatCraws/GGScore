@@ -5,6 +5,9 @@
 #include<set>
 #include"glkResult.h"
 
+// for the event handler of the Tau-constant
+#include <wx/spinctrl.h>
+
 // forward declarations
 class Glicko2::Player;
 
@@ -226,6 +229,7 @@ private:
 	void OnPlayerEditPlayerRemBtn(wxCommandEvent& event);
 	// Settings/About tab
 	void OnSetAbtIncludeBox(wxCommandEvent& event);
+	void OnSetAbtTauSpin(wxSpinDoubleEvent& event);
 
 	void OnExit(wxCloseEvent& event);
 

@@ -76,7 +76,7 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 
 	// ------------ Tau ------------
 	wxStaticText* tauTxt = new wxStaticText(this, wxID_ANY, wxString("Tau: "));
-	tauVal = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 0.2, 2.0, tau, 0.01);
+	tauVal = new wxSpinCtrlDouble(this, ID_SET_ABT_TAU_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 0.2, 2.0,  tau, 0.01);
 	tauTxt->SetToolTip(wxString("Constrains the change in volatility over time"));
 	tauVal->SetToolTip(wxString("Constrains the change in volatility over time"));
 	constGridSizer->Add(tauTxt);

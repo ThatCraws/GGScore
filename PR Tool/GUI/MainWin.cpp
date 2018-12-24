@@ -133,6 +133,7 @@ MainWin::MainWin()
 
 	// Event not handled in Settings/About tab
 	Bind(wxEVT_CHECKBOX, &MainWin::OnSetAbtIncludeBox, this, ID_SET_ABT_INC_BOX);
+	Bind(wxEVT_SPINCTRLDOUBLE, &MainWin::OnSetAbtTauSpin, this, ID_SET_ABT_TAU_SPIN);
 }
 
 void MainWin::finalize() {
@@ -1528,14 +1529,31 @@ void MainWin::OnPlayerEditPlayerRemBtn(wxCommandEvent& event) {
 	}
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
 		if (currPlayer->id == toRemId) {
-			removePlayer(currPlayer->id);
-			delete toRem;
-			return;
+			wxMessageDialog* removePlayerDialog = new wxMessageDialog(this, wxString(
+				"The player and all associated results will be removed. Continue?"),
+				wxString("Player about to be deleted"), wxYES_NO | wxCANCEL);
+			switch (removePlayerDialog->ShowModal()) {
+			case wxID_YES:
+				removePlayer(currPlayer->id);
+				delete toRem;
+				return;
+			case wxID_CANCEL:
+			case wxID_NO:
+				delete toRem;
+				return;
+			}
 		}
 	}
 }
 
+// Settings/about tab
 void MainWin::OnSetAbtIncludeBox(wxCommandEvent& event) {
+	recalculateAllPeriods();
+}
+
+void MainWin::OnSetAbtTauSpin(wxSpinDoubleEvent& event) {
+	Glicko2::setTau(setAbtWindow->getTau());
+	// gotta recalculate everything when changing the Tau-constant
 	recalculateAllPeriods();
 }
 

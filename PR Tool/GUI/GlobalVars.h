@@ -23,7 +23,8 @@ enum {
 	ID_PLA_EDIT_REM_BTN,
 
 	// Settings/About tab
-	ID_SET_ABT_INC_BOX
+	ID_SET_ABT_INC_BOX,
+	ID_SET_ABT_TAU_SPIN
 };
 
 const wxString defaultFormatString = wxString("%d.%m.%Y");
