@@ -7,4 +7,40 @@ TODO
 	->Then either:
 		- in the Glicko API, when a player exists and the algorithm is called get players that are NOT included in the results
 			-> recalculate*Period(s)-method has to create Players in the rating period of their first result 
-		- or let user manage decay? Glicko has decay by definition so probably not
+				-> recalculateAllPeriods right now does:
+
+					- close old world
+					- create new empty world
+					- go through playerBase and:
+						- save old ID of player
+						- recreate player in the world and update ID in playerBase
+						- "map" new ID to old ID of the player
+						- in the "Rating Periods"-tab update the ID(itemData) for the player, if visible
+					- recreate results with the mapped IDs
+					- go through rating periods and:
+						- get results in that period
+						- do glicko for those results
+						- go through playerBase and:
+							- get Glicko-player-equivalent by ID
+							- set ratings of playerBase-player to those of the Glicko-player
+					- go through playerBase and (if visible):
+						- count wins/losses 
+						- set stats in "Rating Periods"-tab
+					- sort "Rating Periods"-tab ranking table
+
+				instead do:
+					- close old world 
+					- create new empty world
+					- go through rating periods and:
+						- get results from period
+						- go through those results and:
+							- check if players exist (getbyid == -1)
+							- if not existing, create
+							- map ID
+							- update ID in "Rating Periods"-tab (takes ID AND string-alias so IDs may temporarily exist twice)
+							- algorithm for those results (only created players are valid to be replaced)
+						- technically rating values will have to be updated here, but IDs might be duplicate right? (use string alias too???)
+						- go through playerBase and (if visible):
+							- count wins/losses 
+							- set stats in "Rating Periods"-tab
+							- sort "Rating Periods"-tab ranking table
