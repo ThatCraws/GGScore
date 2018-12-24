@@ -186,9 +186,12 @@ void MainWin::recalculateAllPeriods() {
 
 		// remember old ID to update ID in rankingTable in Period-tab and recreate results
 		oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(playerBase[i].id, -1));
+		// unsigned int oldId = playerBase[i].id
 
 		playerBase[i].id = Glicko2::createPlayer(startVals.rating, startVals.deviation, startVals.volatility);
 		// update to map to new ID
+
+		// oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(oldId, playerBase[i].id));
 		oldNewIdMap[i].second = playerBase[i].id;
 
 		// only update ID in the rating table if player is present in the first place
