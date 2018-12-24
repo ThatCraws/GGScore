@@ -4,18 +4,15 @@ Application to create power rankings via the Glicko-2 algorithm.
 The basic idea of this application is to create Power Rankings.
 Originally for competitive Super Smash Bros. for the Nintendo Gamecube, but you can technically create PRs for every competitive discipline (without ties).
 The ratings are created via the Glicko-2 algorithm even though there are a few differences to the original algorithm:
-  - No ties
-  - No decay when a player has no results in one rating period
-The decay could be implemented in the future, but for the ties there are currently no plans of implementing that feature,
-because this tool was initially intended for Smash Bros.
+  - No ties. There are currently no plans of implementing that feature, because this tool was initially intended for Smash Bros.
+  - No decay when a player has no results in one rating period. The decay might get implemented in the future.
 
 ## Basic usage/features
 
 The general idea to use this tool is by importing tournaments from challonge.com. For this you will need a developer API key from your challonge-account.
-Then the players' names/aliases from the tournaments sets have to be associated with players. You can either associate an alias with an existing player or create a new one(when importing the first tournament you will have to create all new players of course).
-Once you imported your tourneys you have to enter a rating period. It is recommended to let a player have at least 10-15 games in a rating period to make his rating accurate(especially for the first rating period).
-After importing a tourney the results will show up in the "Match Report"-tab and can be manually removed (or added), if necessarry. 
-If the "Match Report" gets too clustered you can use the "Finalize Ratings" option in the "Rating Period"-tab (where the actual PR is shown as well) to clear the tables displaying the results and rating periods. This also means that you will not be able to remove/add results from the rating periods existing before finalizing though (thus finalizing the ratings up to that point). However, you can just add/remove and import results as before from then on.
+Then the players' names/aliases from the tournament's sets have to be associated with players. You can either associate an alias with an existing player or create a new one(when importing the first tournament you will have to create all new players of course). The results consisting of the winner, loser and date of the match will be added to the table in the "Match Report"-tab and can be manually removed (or added), if necessarry. 
+Once you imported your tourneys you have to enter a rating period. The algorithm will only take results into account that happened within a rating period. It is recommended to let a player have at least 10-15 games in a rating period to make his rating accurate(especially for the first rating period).
+If the "Match Report" gets too clustered you can use the "Finalize Ratings"-option in the "Rating Periods"-tab (where the actual PR is shown as well) to clear the tables displaying the results and rating periods. This also means that you will not be able to remove/add results from the rating periods existing before finalizing though (thus finalizing the ratings up to that point). However, you can add/remove and import results as before from then on.
 
 Keep in mind that only results within a rating period will be used to calculate a rating.
  Also all results within a rating period are seen as happening at once (by the definition of the Glicko-2 algorithm). That means if you create all players with the same starting values (intended use) there will only be matches of people with exactly the same values. So, if there's a PR like this with only one rating period currently and all players started with 1500 rating points and you enter a result of a (currently) 1000-rated player winning against a (currently) 2000-rated player, the whole calculation for that period will be repeated and that result is factored in as a 1500-rated player winning against a 1500-rated player. 
@@ -52,13 +49,14 @@ This is the main class containing the actual algorithm and using the other class
  ## How to build
  
  This application uses a few APIs which will have to be built and linked before you will be able to build this project.
- The needed APIs are wxWidgets, jsoncpp and libcurl (7.62.0 used, but others should work of course, but you will have to change the path in the supplied project file, if you want to use it).
+ The needed APIs are [wxWidgets](https://wxwidgets.org/), [jsoncpp](https://github.com/open-source-parsers/jsoncpp) and [libcurl](https://curl.haxx.se/libcurl/) (7.62.0 used, but others should work of course, but you will have to change the path in the supplied project file, if you want to use it).
  The supplied Visual Studio project files require the following folder structure to successfully build the application:
  
  ```
  └── ┐
      ├── Glicko-2
-     │   └── PR Tool (main git-folder)
+     │   └── .git
+     │   └── PR Tool 
      ├── wxWidget
      │   ├── lib
      │   └── include
