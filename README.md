@@ -5,7 +5,6 @@ The basic idea of this application is to create Power Rankings.
 Originally for competitive Super Smash Bros. for the Nintendo Gamecube, but you can technically create PRs for every competitive discipline (without ties).
 The ratings are created via the Glicko-2 algorithm even though there are a few differences to the original algorithm:
   - No ties. There are currently no plans of implementing that feature, because this tool was initially intended for Smash Bros.
-  - No decay when a player has no results in one rating period. The decay might get implemented in the future.
 
 ## Basic usage/features
 

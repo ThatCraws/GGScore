@@ -2,8 +2,9 @@ TODO
 								
 - Use const qualifier where possible
 
+Before 2019:
+
 - Implement decay
-	-> implement decay-method in Glicko-API
 	->Then either:
 		- in the Glicko API, when a player exists and the algorithm is called get players that are NOT included in the results
 			-> recalculate*Period(s)-method has to create Players in the rating period of their first result 
@@ -44,3 +45,8 @@ TODO
 							- count wins/losses 
 							- set stats in "Rating Periods"-tab
 							- sort "Rating Periods"-tab ranking table
+
+Implement ties... yes, i reconsidered... the Glicko-2 API should be exactly that, so it has to implement ties. Plus, GGScore can then...
+  ... be used for many more competitive disciplines
+  -> Let ties be imported via challonge-brackets
+  -> Let ties be created via "Add result..."-button
