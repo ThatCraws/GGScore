@@ -16,11 +16,12 @@ WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id)
 
 	wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
 
-	float onePart = (winMinWidth - 30) / 5;
+	float onePart = (winMinWidth - 20) / 9;
 	matchTable = new wxListView(this, ID_MAT_REP_RES_LIST, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
-	matchTable->InsertColumn(0, "Date", 0, (int)onePart);
+	matchTable->InsertColumn(0, "Date", 0, (int)onePart * 2);
 	matchTable->InsertColumn(1, "Winner", 0, (int)onePart * 2);
 	matchTable->InsertColumn(2, "Loser", 0, (int)onePart * 2);
+	matchTable->InsertColumn(3, "Description", 0, (int)onePart * 3);
 	listViewItemID = 0; // used to give every item unique itemData (NOT index of item)
 	resultViewSortedColumn = 0; // sort by date by default
 	resultViewDescending = true; // sort descending by default
@@ -308,7 +309,7 @@ void WinMatchRep::sortResultTable() {
 	}
 }
 
-void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit, bool tie) {
+void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit, bool tie, std::string desc) {
 	if (forfeit && tie) {
 		wxMessageBox(wxString("A forfeit can not be a tie as well!"));
 		return;
@@ -317,6 +318,7 @@ void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, con
 	matchTable->InsertItem(listViewItemID, wxString(date.Format(defaultFormatString)));
 	matchTable->SetItem(listViewItemID, 1, wxString(winnerAlias));
 	matchTable->SetItem(listViewItemID, 2, wxString(loserAlias));
+	matchTable->SetItem(listViewItemID, 3, wxString(desc));
 
 	// sorting 
 	matchTable->SetItemData(listViewItemID, listViewItemID);

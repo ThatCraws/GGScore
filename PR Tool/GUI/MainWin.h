@@ -104,9 +104,9 @@ private:
 		includeForfeits		will include the results, that are forfeited (according to the result-struct's "forfeit"-field), if true
 
 	Return:
-		A vector of Glicko-2 Results that where entered to occur (or rather added to the results-vector with a date) within the given time frame.
+		A vector of the struct Results that where entered to occur (or rather added to the results-vector with a date) within the given time frame.
 	*/
-	std::vector<Glicko2::Result> getResultsInPeriod(const wxDateTime& start, const wxDateTime& end, bool includeForfeits = true);
+	std::vector<Result> getResultsInPeriod(const wxDateTime& start, const wxDateTime& end, bool includeForfeits = true);
 
 
 	/* ------------ playerIDByAlias ------------

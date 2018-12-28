@@ -19,14 +19,14 @@ WinRatPer::WinRatPer(wxWindow* parent, wxWindowID winid)
 
 	// ------------ Rating Table ------------
 	ratingTable = new wxListView(this, ID_RAT_PER_PLA_LIST, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
-	float onePart = (winMinWidth - 30) / 24;
-	ratingTable->InsertColumn(0, wxString("Name"), 0, (int)onePart * 6);
-	ratingTable->InsertColumn(1, wxString("Rating"), 0, (int)onePart * 4);
-	ratingTable->InsertColumn(2, wxString("Sets"), 0,(int)onePart * 3);		
-	ratingTable->InsertColumn(3, wxString("Wins"), 0,(int)onePart * 3);		
-	ratingTable->InsertColumn(4, wxString("Losses"), 0, (int)onePart * 3);	
-	ratingTable->InsertColumn(5, wxString("Ties"), 0, (int)onePart * 3);	
-	ratingTable->InsertColumn(6, wxString("Win %"), 0, (int)onePart * 3);	
+	float onePart = (winMinWidth - 20) / 13;
+	ratingTable->InsertColumn(0, wxString("Name"), 0, 90);
+	ratingTable->InsertColumn(1, wxString("Rating"), 0, 60);
+	ratingTable->InsertColumn(2, wxString("Sets"), 0, 35);
+	ratingTable->InsertColumn(3, wxString("Wins"), 0, 40);		
+	ratingTable->InsertColumn(4, wxString("Losses"), 0, 50);	
+	ratingTable->InsertColumn(5, wxString("Ties"), 0, 35);	
+	ratingTable->InsertColumn(6, wxString("Win %"), 0, 50);	
 	ratingViewItemID = 0; // will be used to assign IDs to the added items. Could probably just use getItemCount()...
 	ratingViewSortedColumn = 1; // sort by rating by default
 	ratingViewDescending = true; // sort descending by default
@@ -367,7 +367,7 @@ void WinRatPer::updatePlayerID(unsigned int oldId, std::string displayAlias, uns
 	item = ratingTable->GetNextItem(item);
 
 	while (ratingTable->GetItemData(item) != oldId
-		&& !(ratingTable->GetItemText(item).IsSameAs(wxString(displayAlias)))) {
+		|| !(ratingTable->GetItemText(item).IsSameAs(wxString(displayAlias)))) {
 
 		item = ratingTable->GetNextItem(item);
 		if (item == -1) {

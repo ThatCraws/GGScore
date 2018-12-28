@@ -41,10 +41,13 @@ struct MainWin::Player {
 	bool visible;
 };
 
+// Struct holding all relevant information of a result. Ties are managed by the Glicko2-Result.
+// The winnerID will neither be player 1 nor player 2, if it is a tie.
 struct MainWin::Result {
 	Glicko2::Result result;
 	wxDateTime date;
 	bool forfeit;
+	std::string desc;
 };
 
 // Helper functions (has to be up here to be read before ratingPeriods-set is initialized)
@@ -108,13 +111,13 @@ MainWin::MainWin()
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
 
 		if (currResult->result.getP1Id() == currResult->result.getWinnerId()) {
-			matchWindow->addResult(getMainAlias(currResult->result.getP1Id()), getMainAlias(currResult->result.getP2Id()), currResult->date, currResult->forfeit);
+			matchWindow->addResult(getMainAlias(currResult->result.getP1Id()), getMainAlias(currResult->result.getP2Id()), currResult->date, currResult->forfeit, false, currResult->desc);
 		}
 		else if (currResult->result.getP2Id() == currResult->result.getWinnerId()) {
-			matchWindow->addResult(getMainAlias(currResult->result.getP2Id()), getMainAlias(currResult->result.getP1Id()), currResult->date, currResult->forfeit);
+			matchWindow->addResult(getMainAlias(currResult->result.getP2Id()), getMainAlias(currResult->result.getP1Id()), currResult->date, currResult->forfeit, false, currResult->desc);
 		}
 		else {
-			matchWindow->addResult(getMainAlias(currResult->result.getP1Id()), getMainAlias(currResult->result.getP2Id()), currResult->date, currResult->forfeit, true);
+			matchWindow->addResult(getMainAlias(currResult->result.getP1Id()), getMainAlias(currResult->result.getP2Id()), currResult->date, currResult->forfeit, true, currResult->desc);
 		}
 	}
 	matchWindow->sortResultTable();
@@ -155,7 +158,14 @@ void MainWin::finalize() {
 		unsigned int ties = 0;
 		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 
-			std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+			std::vector<Glicko2::Result> relevantResults;
+
+			// fill relevantResults vector with Glicko-Results from period
+			std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
+			for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
+				relevantResults.push_back(currStructResult->result);
+			}
+
 			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
 
 				bool isP1 = currPlayer->id == currResult->getP1Id();
@@ -203,95 +213,162 @@ void MainWin::finalize() {
 }
 
 void MainWin::recalculateAllPeriods() {
-	// first: old ID, second: new ID
-	std::vector<std::pair<unsigned int, unsigned int>> oldNewIdMap;
-
 	Glicko2::closeWorld();
 	Glicko2::createWorld();
 
-	std::set<Player> createdPlayers;
+	std::map<unsigned int, unsigned int> oldNewIdMap = { {-1, -1} }; // initialize this way to assign a winID of -1 back to -1 (for ties)
+	std::vector<Player> newPlayerBase; // this will replace the current playerBase in the end
+	std::multiset<Result, bool(*)(const Result&, const Result&)> newResults(&compareResultDates); // this will replace the current results in the end
 
-	/* TODO this!!!
-	// Create players in the period they first got results in
-	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-		std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+	for (unsigned int i = 0;  i < ratingPeriods.size(); i++) {
+		// get results in current period
+		std::vector<Result> relResults = getResultsInPeriod(ratingPeriods[i].first, ratingPeriods[i].second, setAbtWindow->getIncludeForfeits());
+		// to save updated ID-results for only the current period (to apply glicko-algorithm)
+		std::vector<Glicko2::Result> newRelevantResults;
 
-		// Results of current rating period
-		for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-		}
-	}*/
+		for (auto currResult = relResults.begin(); currResult != relResults.end(); currResult++) {
+			// if the result contains a player ID, that has not been updated yet, create new player and map old ID to new one.
+			if (oldNewIdMap.find(currResult->result.getP1Id()) == oldNewIdMap.end()) {
+				unsigned int oldId = currResult->result.getP1Id();
 
-	for (unsigned int i = 0; i < playerBase.size(); i++) {
+				// lookup player in playerbase to retrieve ratings to create new player in glicko-world
+				for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+					if (currPlayer->id == oldId) {
+						// create with starting values and map new ID to old one
+						oldNewIdMap[oldId] = Glicko2::createPlayer(currPlayer->ratings[0].rating, currPlayer->ratings[0].deviation, currPlayer->ratings[0].volatility);
+						// assign new ID
+						currPlayer->id = oldNewIdMap[oldId];
 
-		// Create new player in Glicko2-world with starting values and update local ID
-		Rating& startVals = playerBase[i].ratings[0];
+						// only update ID in the rating table if player is present in the first place
+						if (currPlayer->visible) {
+							periodWindow->updatePlayerID(oldId, currPlayer->aliases[0], oldNewIdMap[oldId]);
+						}
 
-		// remember old ID to update ID in rankingTable in Period-tab and recreate results
-		oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(playerBase[i].id, -1));
-		// unsigned int oldId = playerBase[i].id
+						// remove from old playerbase to not have duplicate IDs
+						newPlayerBase.push_back(*currPlayer);
+						playerBase.erase(currPlayer);
 
-		playerBase[i].id = Glicko2::createPlayer(startVals.rating, startVals.deviation, startVals.volatility);
-		// update to map to new ID
-
-		// oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(oldId, playerBase[i].id));
-		oldNewIdMap[i].second = playerBase[i].id;
-
-		// only update ID in the rating table if player is present in the first place
-		if (playerBase[i].visible) {
-			periodWindow->updatePlayerID(oldNewIdMap[i].first, playerBase[i].aliases[0], oldNewIdMap[i].second);
-		}
-
-	} // World with all players on their starting values created
-
-	// recreate results with new IDs
-	auto newResults = std::multiset<Result, bool(*)(const Result&, const Result&)>(&compareResultDates);
-	// Go through results
-	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
-		// remember old players' and winner's ID
-		unsigned int oldNewP1Id = currResult->result.getP1Id();
-		unsigned int oldNewP2Id = currResult->result.getP2Id();
-		unsigned int oldNewWinnerId = currResult->result.getWinnerId();
-		// assign new ID
-		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
-			if (currId->first == oldNewWinnerId) {
-				oldNewWinnerId = currId->second;
+						// player found, so move on to next one
+						break;
+					}
+				}
 			}
-			if (currId->first == oldNewP1Id) {
-				oldNewP1Id = currId->second;
+			// same for player 2 ID
+			// if the result contains a player ID, that has not been updated yet, create new player and map old ID to new one.
+			if (oldNewIdMap.find(currResult->result.getP2Id()) == oldNewIdMap.end()) {
+				unsigned int oldId = currResult->result.getP2Id();
+
+				// lookup player in playerbase to retrieve ratings to create new player in glicko-world
+				for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+					if (currPlayer->id == oldId) {
+						// create with starting values and map new ID to old one
+						oldNewIdMap[oldId] = Glicko2::createPlayer(currPlayer->ratings[0].rating, currPlayer->ratings[0].deviation, currPlayer->ratings[0].volatility);
+						// assign new ID
+						currPlayer->id = oldNewIdMap[oldId];
+
+						// only update ID in the rating table if player is present in the first place
+						if (currPlayer->visible) {
+							periodWindow->updatePlayerID(oldId, currPlayer->aliases[0], oldNewIdMap[oldId]);
+						}
+
+						// remove from old playerbase to not have duplicate IDs
+						newPlayerBase.push_back(*currPlayer);
+						playerBase.erase(currPlayer);
+
+						// player found, so move on to next one
+						break;
+					}
+				}
 			}
-			else if (currId->first == oldNewP2Id) {
-				oldNewP2Id = currId->second;
+
+			// Now to recreate the result with updated IDs
+			Glicko2::Result newIdResult = Glicko2::Result(oldNewIdMap[currResult->result.getP1Id()],
+				oldNewIdMap[currResult->result.getP2Id()], oldNewIdMap[currResult->result.getWinnerId()]);
+			Result toAdd;
+			toAdd.date = currResult->date;
+			toAdd.forfeit = currResult->forfeit;
+			toAdd.result = newIdResult;
+			toAdd.desc = currResult->desc;
+
+			// Insert it into the newRelevantResults-vector to apply glicko-algorithm (only for this period)
+			newRelevantResults.push_back(toAdd.result);
+			// Insert into new results-set to have all results recreated with new IDs in the end
+			newResults.insert(toAdd);
+
+			// Remove from old results-vector (if there are results not inside any period, they'll be left in here at the end)
+			for (auto currResultFromVector = results.begin(); currResultFromVector != results.end(); currResultFromVector++) {
+				// just compare all fields (old IDs in both), if there's "another" result with the same fields, we can just delete that one.
+				if (currResult->date.IsSameDate(currResultFromVector->date) &&
+					currResult->forfeit == currResultFromVector->forfeit &&
+					currResult->result.getP1Id() == currResultFromVector->result.getP1Id() &&
+					currResult->result.getP2Id() == currResultFromVector->result.getP2Id() &&
+					currResult->result.getWinnerId() == currResultFromVector->result.getWinnerId()) 
+				{
+					results.erase(currResultFromVector);
+					break;
+				}
+				
 			}
-		}
 
-		Glicko2::Result newResult = Glicko2::Result(oldNewP1Id, oldNewP2Id, oldNewWinnerId);
+		} // at this point every player in the current periods' results has been recreated in the Glicko-world, mapped to the new ID...
+		//...and was pushed into the newPlayerBase (and does not appear in the old playerBase anymore).
+		// Also the results IDs have been updated and then got removed from the results-vector and added to the new one.
 
-		Result toAdd;
-		toAdd.result = newResult;
-		toAdd.date = currResult->date;
-		toAdd.forfeit = currResult->forfeit;
-		newResults.insert(toAdd);
-	}
+		Glicko2::glicko(newRelevantResults);
 
-	results.swap(newResults);
-
-	// Apply algorithm to all results in rating-periods
-	for (unsigned int i = 0; i < ratingPeriods.size() ; i++) { // Iterate over rating periods
-		// collect all results in current rating period (only include forfeits, if "include forfeits in rating"-option is checked)
-		std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(ratingPeriods[i].first, ratingPeriods[i].second, setAbtWindow->getIncludeForfeits());
-
-		Glicko2::glicko(relevantResults); // use Glicko-2 algorithm for the rating period
-
-		// Now update local playerBase by updating the rating values
+		// Now update the newPlayerBase players' rating values for the current period. newPlayerBase only contains players already...
+		// ...created in the new Glicko-world
 		Glicko2::Player* realPlayer;
-		for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) { // Iterate over playerBase
+		for (auto currPlayer = newPlayerBase.begin(); currPlayer != newPlayerBase.end(); currPlayer++) { // Iterate over playerBase
 			realPlayer = Glicko2::playerByID(currPlayer->id); // get Player-object from Glicko2-world
 			//if(nullptr)????
 			currPlayer->ratings[i + 1].rating = realPlayer->getRating();
 			currPlayer->ratings[i + 1].deviation = realPlayer->getRD();
 			currPlayer->ratings[i + 1].volatility = realPlayer->getVolatility();
 		}
+
 	}
+
+	// after recreating all players/results from the rating periods there might be some players/results left, that were not within any rating period.
+	// Recreate those with updated IDs
+	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+		unsigned int oldId = currPlayer->id;
+
+		oldNewIdMap[oldId] = Glicko2::createPlayer(currPlayer->ratings[0].rating, currPlayer->ratings[0].deviation, currPlayer->ratings[0].volatility);
+
+		currPlayer->id = oldNewIdMap[oldId];
+
+		// Players did not participate in any rated matches, so set all rating values to their start values
+		std::vector<Rating>& ratingVector = currPlayer->ratings;
+		for (auto currRating = ratingVector.begin(); currRating != ratingVector.end(); currRating++) {
+			*currRating = ratingVector[0];
+		}
+
+		newPlayerBase.push_back(*currPlayer);
+
+		// only update ID in the rating table if player is present in the first place
+		if (currPlayer->visible) {
+			periodWindow->updatePlayerID(oldId, currPlayer->aliases[0], oldNewIdMap[oldId]);
+		}
+	}
+
+	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
+		const Glicko2::Result& toRecreate = currResult->result;
+
+		Glicko2::Result newIdResult = Glicko2::Result(oldNewIdMap[toRecreate.getP1Id()], oldNewIdMap[toRecreate.getP2Id()], oldNewIdMap[toRecreate.getWinnerId()]);
+
+		Result toAdd;
+		toAdd.date = currResult->date;
+		toAdd.forfeit = currResult->forfeit;
+		toAdd.result = newIdResult;
+		toAdd.desc = currResult->desc;
+
+		newResults.insert(toAdd);
+	}
+
+	playerBase.swap(newPlayerBase);
+	results.swap(newResults);
+
 	// Update rating period-tab rating table 
 	// Count wins and losses per player
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
@@ -300,8 +377,17 @@ void MainWin::recalculateAllPeriods() {
 			unsigned int wins = 0;
 			unsigned int losses = 0;
 			unsigned int ties = 0;
+
+
 			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
+				std::vector<Glicko2::Result> relevantResults;
+
+				// fill relevantResults vector with Glicko-Results from period
+				std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
+				for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
+					relevantResults.push_back(currStructResult->result);
+				}
+
 				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
 					bool isP1 = currPlayer->id == currResult->getP1Id();
 					bool isP2 = currPlayer->id == currResult->getP2Id();
@@ -336,132 +422,8 @@ void MainWin::recalculateAllPeriods() {
 	periodWindow->sortMatchTable();
 }
 
+// TODO - reimplement
 void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& ratingPeriod) {
-	// first: old ID, second: new ID
-	std::vector<std::pair<unsigned int, unsigned int>> oldNewIdMap;
-
-	// Recreate world
-	Glicko2::closeWorld();
-	Glicko2::createWorld();
-
-	// get results in the given rating period
-	std::vector<Glicko2::Result> relevantResults;
-
-	// get index from where to update players' ratings
-	unsigned int index = 0;
-	for (unsigned int i = 0; ratingPeriods[i] != ratingPeriod; i++) { // look for the given ratingPeriod to update values from(including the results of that period)
-		index = i;
-	} // Index is now the ratingvector-index of the last value NOT to change (but these values are used to calculate the values for the following period)
-
-	// Create the Glicko-players with values from before the given period and update ID in playerBase
-	for (unsigned int i = 0; i < playerBase.size(); i++) {
-		// remember old ID to update ID in rankingTable in Period-tab and recreate results
-		oldNewIdMap.push_back(std::pair<unsigned int, unsigned int>(playerBase[i].id, -1));
-		playerBase[i].id = Glicko2::createPlayer(playerBase[i].ratings[index].rating, playerBase[i].ratings[index].deviation, playerBase[i].ratings[index].volatility);
-		oldNewIdMap[i].second = playerBase[i].id;
-
-		if (playerBase[i].visible) {
-			periodWindow->updatePlayerID(oldNewIdMap[i].first, playerBase[i].aliases[0], oldNewIdMap[i].second);
-		}
-	}
-
-	// recreate results with new IDs
-	auto newResults = std::multiset<Result, bool(*)(const Result&, const Result&)>(&compareResultDates);
-	// Go through results
-	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
-		// remember old winner's and loser's ID
-		unsigned int oldNewP1Id = currResult->result.getP1Id();
-		unsigned int oldNewP2Id = currResult->result.getP2Id();
-		unsigned int oldNewWinnerId = currResult->result.getWinnerId();
-		// assign new ID
-		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
-			if (currId->first == oldNewWinnerId) {
-				oldNewWinnerId = currId->second;
-			}
-			if (currId->first == oldNewP1Id) {
-				oldNewP1Id = currId->second;
-			}
-			else if (currId->first == oldNewP2Id) {
-				oldNewP2Id = currId->second;
-			}
-		}
-
-		Glicko2::Result newResult = Glicko2::Result(oldNewP1Id, oldNewP2Id, oldNewWinnerId);
-
-		Result toAdd;
-		toAdd.result = newResult;
-		toAdd.date = currResult->date;
-		toAdd.forfeit = currResult->forfeit;
-
-		newResults.insert(toAdd);
-	}
-
-	results.swap(newResults);
-
-	// Now we wanna access the values after the given period (the fact that a ratingPeriod was passed means, there is at least one. In which case...
-	// ...the starting values were read and now index is 0, meaning the values before the first period (increments in following for-loop to...
-	// ...get the get the values after the given period, which are the first values to be changed)
-
-	// Iterate over ratingPeriods-set leaving the periods before this one
-	for (auto currPeriod = ratingPeriods.begin() + (index++); currPeriod != ratingPeriods.end(); currPeriod++) {
-		relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
-		// Apply glicko for those results
-		if (!relevantResults.empty()) {
-			Glicko2::glicko(relevantResults);
-		}
-
-		// Update playerBase with those results
-		Glicko2::Player* currGlkPlayer;
-		for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-			currGlkPlayer = Glicko2::playerByID(currPlayer->id);
-			currPlayer->ratings[index].rating = currGlkPlayer->getRating();
-			currPlayer->ratings[index].deviation = currGlkPlayer->getRD();
-			currPlayer->ratings[index].volatility = currGlkPlayer->getVolatility();
-		}
-		index++;
-	}
-	// Update rating period-tab rating table
-	// Count wins and losses per player
-	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		// only update if player is visible
-		if (currPlayer->visible) {
-			unsigned int wins = 0;
-			unsigned int losses = 0;
-			unsigned int ties = 0;
-			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
-				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-					bool isP1 = currPlayer->id == currResult->getP1Id();
-					bool isP2 = currPlayer->id == currResult->getP2Id();
-
-					if (isP1) {
-						if (currResult->getP1Id() == currResult->getWinnerId()) {
-							wins++;
-						}
-						else if (currResult->getP2Id() == currResult->getWinnerId()) {
-							losses++;
-						}
-						else {
-							ties++;
-						}
-					}
-					else if (isP2) {
-						if (currResult->getP2Id() == currResult->getWinnerId()) {
-							wins++;
-						}
-						else if (currResult->getP1Id() == currResult->getWinnerId()) {
-							losses++;
-						}
-						else {
-							ties++;
-						}
-					}
-				}
-			}
-			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses, currPlayer->ties + ties);
-		}
-	}
-	periodWindow->sortMatchTable();
 }
 
 
@@ -587,14 +549,14 @@ const std::pair<wxDateTime, wxDateTime>* MainWin::findPeriod(wxDateTime& start, 
 	return toRet;
 }
 
-std::vector<Glicko2::Result> MainWin::getResultsInPeriod(const wxDateTime& start, const wxDateTime& end, bool includeForfeits) {
-	std::vector<Glicko2::Result> toRet;
+std::vector<MainWin::Result> MainWin::getResultsInPeriod(const wxDateTime& start, const wxDateTime& end, bool includeForfeits) {
+	std::vector<Result> toRet;
 
 	for (auto currRes = results.begin(); currRes != results.end(); currRes++) {
 		if ((currRes->date.IsLaterThan(start) || currRes->date.IsEqualTo(start)) &&
 			(currRes->date.IsEarlierThan(end) || currRes->date.IsEqualTo(end))) {
 			if ((!currRes->forfeit) || includeForfeits) {
-				toRet.push_back(currRes->result);
+				toRet.push_back(*currRes);
 			}
 		}
 	}
@@ -912,6 +874,7 @@ bool MainWin::loadResults() {
 				toAdd.result = theResult;
 				toAdd.date = resultsDate;
 				toAdd.forfeit = (*currResult)["forfeit"].asBool();
+				toAdd.desc = (*currResult)["description"].asString();
 
 				results.insert(toAdd);
 			}
@@ -945,6 +908,7 @@ bool MainWin::saveResults() {
 		resultToAdd["winner"] = getMainAlias(currResult->result.getWinnerId());
 		resultToAdd["date"] = currResult->date.FormatISODate().ToStdString();
 		resultToAdd["forfeit"] = currResult->forfeit;
+		resultToAdd["description"] = currResult->desc;
 
 		allResults.append(resultToAdd);
 	}
@@ -1069,7 +1033,9 @@ void MainWin::OnRatPerAddBtn(wxCommandEvent& event) {
 		}
 	}
 
-	recalculateFromPeriod(*thePeriod);
+	// TODO use again, once reimplemented
+	//recalculateFromPeriod(*thePeriod);
+	recalculateAllPeriods();
 
 	delete thePeriod;
 }
@@ -1108,7 +1074,10 @@ void MainWin::OnRatPerRemBtn(wxCommandEvent& event) {
 		}
 
 		if (prevPeriod != nullptr) { // if this is nullptr the first period got removed
-			recalculateFromPeriod(*prevPeriod);
+
+			// TODO use again, once reimplemented
+			//recalculateFromPeriod(*prevPeriod);
+			recalculateAllPeriods();
 		}
 		else {
 			recalculateAllPeriods();
@@ -1179,6 +1148,7 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	toAdd.result = resultToAdd;
 	toAdd.date = std::get<2>(*resultTuple);
 	toAdd.forfeit = std::get<3>(*resultTuple);
+	toAdd.desc = "";
 
 	results.insert(toAdd);
 	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple), toAdd.forfeit, std::get<4>(*resultTuple));
@@ -1187,7 +1157,9 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 		if ((std::get<2>(*resultTuple).IsLaterThan(currPeriod->first) || std::get<2>(*resultTuple).IsEqualTo(currPeriod->first)) 
 			&& (std::get<2>(*resultTuple).IsEarlierThan(currPeriod->second) || std::get<2>(*resultTuple).IsEqualTo(currPeriod->second))) {
-			recalculateFromPeriod(*currPeriod);
+			// TODO use again, once reimplemented
+			// recalculateFromPeriod(*currPeriod);
+			recalculateAllPeriods();
 		}
 	}
 
@@ -1219,7 +1191,9 @@ void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
 						for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 							if ((std::get<2>(*data).IsLaterThan(currPeriod->first) || std::get<2>(*data).IsEqualTo(currPeriod->first))
 								&& (std::get<2>(*data).IsEarlierThan(currPeriod->second) || std::get<2>(*data).IsEqualTo(currPeriod->second))) {
-								recalculateFromPeriod(*currPeriod);
+								// TODO use again, once reimplemented
+								//recalculateFromPeriod(*currPeriod);
+								recalculateAllPeriods();
 							}
 						}
 
@@ -1319,6 +1293,56 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 		participantsMap[obj[i]["participant"]["id"].asUInt()] = obj[i]["participant"]["display_name"].asString();
 	}
 
+
+	// get {tournament ID}.json containing information about the tournament
+	apiUrl = "https://api.challonge.com/v1/tournaments/" + bracketID + ".json?api_key=" + setAbtWindow->getAPIKey();
+
+	response = getResponses.sendRequest(apiUrl);
+
+	responseCode = getResponses.getResponseCode();
+	if (responseCode != 200) {
+		std::string errorString = "Did not get expected response, when trying to retrieve match list.";
+
+		switch (responseCode) {
+		case 401:
+			errorString = "''Unauthorized'' response code. Wrong api key?";
+			break;
+		case 404:
+			errorString = "Response code implies that the entered ID does not represent an existing bracket.";
+			break;
+		case 500:
+			errorString = "External error. Challonge.com might be down. Please try again (later).";
+			break;
+		case 619:
+			errorString = "Timeout while connecting. Please try again.";
+			break;
+		case 690:
+			errorString = "Timeout in file transfer. Please try again.";
+		}
+
+		wxMessageBox(wxString(errorString), wxString("Response Code was: " + std::to_string(getResponses.getResponseCode())));
+		return;
+	}
+
+	// Parsing downloaded .json-file to json-object
+	theJson = std::stringstream(response);
+
+	obj.clear();
+	errs.clear();
+
+	if (!Json::parseFromStream(reader, theJson, &obj, &errs)) {
+		wxMessageBox(wxString("Couldn't parse tournament info:    " + errs), wxString("Tournament info could not be retrieved."));
+		return;
+	}
+
+	
+	// get date
+	wxDateTime dateOfTourney;
+	dateOfTourney.ParseFormat(wxString(obj["tournament"]["started_at"].asString().substr(0, 10)), wxString("%Y-%m-%d"));
+
+	std::string descOfTourney = obj["tournament"]["name"].asString();
+
+
 	// get matches.json containing a list of matches
 	apiUrl = "https://api.challonge.com/v1/tournaments/" + bracketID + "/matches.json?api_key=" + setAbtWindow->getAPIKey();
 
@@ -1366,9 +1390,6 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 			std::string scoreString = currMatch["scores_csv"].asString();
 
-			// to store date and create result in the end
-			wxDateTime dateOfMatch;
-
 			// if the set is not forfeited (if there's a negative value in the results like -1-0, there'll always be more than one '-')
 			if (!(currMatch["forfeited"].asBool() 
 				|| std::count(scoreString.begin(), scoreString.end(), '-') > 1)) {
@@ -1395,10 +1416,6 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 						// now created by score-string to get winner by points...
 						// by here it's safe to assume the result will be entered
 
-						// get date
-						wxDateTime dateOfMatch;
-						dateOfMatch.ParseFormat(wxString(currMatch["completed_at"].asString().substr(0, 10)), wxString("%Y-%m-%d"));
-
 						// get scores
 						std::string p1Score = scoreString.substr(0, scoreString.find_first_of("-"));
 						std::string p2Score = scoreString.substr(scoreString.find_first_of("-") + 1);
@@ -1410,11 +1427,12 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 							Result toAdd;
 							toAdd.result = resultToAdd;
-							toAdd.date = dateOfMatch;
+							toAdd.date = dateOfTourney;
 							toAdd.forfeit = false;
+							toAdd.desc = descOfTourney;
 
 							results.insert(toAdd);
-							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfMatch);
+							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfTourney, false, false, descOfTourney);
 						}
 						else if (std::stoi(p1Score) < std::stoi(p2Score)) {
 							// add results to result-collection-thingy(set, a set of sets, ha!)
@@ -1422,11 +1440,12 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 							Result toAdd;
 							toAdd.result = resultToAdd;
-							toAdd.date = dateOfMatch;
+							toAdd.date = dateOfTourney;
 							toAdd.forfeit = false;
+							toAdd.desc = descOfTourney;
 
 							results.insert(toAdd);
-							matchWindow->addResult(getMainAlias(p2Id), getMainAlias(p1Id), dateOfMatch);
+							matchWindow->addResult(getMainAlias(p2Id), getMainAlias(p1Id), dateOfTourney, false, false, descOfTourney);
 						}
 						else {
 							// if the scores are equal, it's a tie
@@ -1434,11 +1453,12 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 							Result toAdd;
 							toAdd.result = resultToAdd;
-							toAdd.date = dateOfMatch;
+							toAdd.date = dateOfTourney;
 							toAdd.forfeit = false;
+							toAdd.desc = descOfTourney;
 
 							results.insert(toAdd);
-							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfMatch, false, true);
+							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfTourney, false, true, descOfTourney);
 						}
 					}
 				}
@@ -1465,18 +1485,17 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 						// same as above just for forfeited match
 
-						dateOfMatch.ParseFormat(wxString(currMatch["completed_at"].asString().substr(0, 10)), wxString("%Y-%m-%d"));
-
 						// add results to result-collection-thingy(set, a set of sets, ha!)
 						Glicko2::Result resultToAdd = Glicko2::Result(winId, loseId, winId);
 
 						Result toAdd;
 						toAdd.result = resultToAdd;
-						toAdd.date = dateOfMatch;
+						toAdd.date = dateOfTourney;
 						toAdd.forfeit = true;
+						toAdd.desc = descOfTourney;
 
 						results.insert(toAdd);
-						matchWindow->addResult(getMainAlias(winId), getMainAlias(loseId), dateOfMatch, true);
+						matchWindow->addResult(getMainAlias(winId), getMainAlias(loseId), dateOfTourney, true, false, descOfTourney);
 					}
 				}
 			}
@@ -1642,7 +1661,14 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 				unsigned int losses = 0;
 				unsigned int ties = 0;
 				for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-					std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+
+					std::vector<Glicko2::Result> relevantResults;
+
+					// fill relevantResults vector with Glicko-Results from period
+					std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
+					for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
+						relevantResults.push_back(currStructResult->result);
+					}
 					for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
 						bool isP1 = currResult->getP1Id() == id;
 						bool isP2 = currResult->getP1Id() == id;
