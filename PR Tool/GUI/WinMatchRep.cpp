@@ -8,6 +8,7 @@
 
 #include <wx/calctrl.h>
 
+#include <cctype>
 #include <locale>
 
 WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id) 
@@ -51,13 +52,21 @@ WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id)
 
 	// ------------ Info text, colored forfeits ------------
 	wxBoxSizer* infoSizer = new wxBoxSizer(wxHORIZONTAL);
-	wxWindow* sampleColor = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxSize(20, 20));
-	sampleColor->SetBackgroundColour(*wxLIGHT_GREY);
-	sampleColor->Refresh();
-	wxStaticText* infoTxt = new wxStaticText(this, wxID_ANY, wxString(" = Forfeited "));
+	wxWindow* forfeitColor = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxSize(20, 20));
+	forfeitColor->SetBackgroundColour(wxColour(208, 208, 208));
+	forfeitColor->Refresh();
+	wxStaticText* forfeitTxt = new wxStaticText(this, wxID_ANY, wxString(" = Forfeit "));
 
-	infoSizer->Add(sampleColor);
-	infoSizer->Add(infoTxt);
+	wxWindow* tieColor = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxSize(20, 20));
+	tieColor->SetBackgroundColour(wxColour(144, 144, 144));
+	tieColor->Refresh();
+	wxStaticText* tieTxt = new wxStaticText(this, wxID_ANY, wxString(" = Tie "));
+
+	infoSizer->Add(forfeitColor);
+	infoSizer->Add(forfeitTxt);
+
+	infoSizer->Add(tieColor);
+	infoSizer->Add(tieTxt);
 
 	mainSizer->Add(infoSizer, 0, wxALIGN_RIGHT);
 
@@ -111,15 +120,20 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 
 	resSizer->Add(playerSelSizer, 0, wxCENTER);
 
+	// -=========== Match settings ===========-
+	wxBoxSizer* matchSetSizer = new wxBoxSizer(wxHORIZONTAL);
 	// ------------ Forfeit checkbox ------------
-	wxBoxSizer* forfeitSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxCheckBox* forfeit = new wxCheckBox(addResDialog, wxID_ANY, wxString("Win/loss by Forfeit"), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
 	forfeit->SetValue(false);
-	forfeitSizer->Add(forfeit);
+	matchSetSizer->Add(forfeit);
+
+	// ------------ Tie checkbox ------------
+	wxCheckBox* tieBox = new wxCheckBox(addResDialog, wxID_ANY, wxString("Tie"), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
+	tieBox->SetValue(false);
+	matchSetSizer->Add(tieBox);
 
 	resSizer->AddSpacer(5);
-	resSizer->Add(forfeitSizer, 0, wxALIGN_CENTER);
-	forfeitSizer->AddSpacer(25);
+	resSizer->Add(matchSetSizer, 0, wxALIGN_CENTER);
 
 	// ------------ Date Picker ------------ 
 
@@ -159,6 +173,10 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 			wxMessageBox(wxString("The entered player were the same!"));
 			return;
 		}
+		else if (forfeit->GetValue() && tieBox->GetValue()) {
+			wxMessageBox(wxString("The result can not be a forfeit AND a tie!"));
+			return;
+		}
 		break;
 	case wxID_CANCEL:
 	case wxID_EXIT:
@@ -168,14 +186,14 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 
 	// String alias for both players and the winning party
 
-	std::tuple<std::string, std::string, wxDateTime, bool>* data = new std::tuple<std::string, std::string, wxDateTime, bool>();
+	std::tuple<std::string, std::string, wxDateTime, bool, bool>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool>();
 	
 	// Winner is first in vector
 	if (p1Won->GetValue()) {
-		*data = std::make_tuple(player1->GetValue().ToStdString(), player2->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue());
+		*data = std::make_tuple(player1->GetValue().ToStdString(), player2->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue(), tieBox->GetValue());
 	}
 	else {
-		*data = std::make_tuple(player2->GetValue().ToStdString(), player1->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue());
+		*data = std::make_tuple(player2->GetValue().ToStdString(), player1->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue(), tieBox->GetValue());
 	}
 
 	addResDialog->Destroy();
@@ -188,7 +206,6 @@ void WinMatchRep::OnBtnRem(wxCommandEvent& event) {
 	long item = matchTable->GetFirstSelected();
 
 	if (item == -1) {
-		//wxMessageBox(wxString("No Result to remove selected!"), wxString("Invalid operation"));
 		return;
 	}
 
@@ -196,8 +213,9 @@ void WinMatchRep::OnBtnRem(wxCommandEvent& event) {
 	std::string loserAlias = matchTable->GetItemText(item, 2).ToStdString();
 	wxDateTime matchDate;
 	matchDate.ParseFormat(matchTable->GetItemText(item, 0), defaultFormatString);
+	bool tie = matchTable->GetItemBackgroundColour(item) == wxColour(144, 144, 144);
 
-	std::tuple<std::string, std::string, wxDateTime>* data = new std::tuple<std::string, std::string, wxDateTime>(winnerAlias, loserAlias, matchDate);
+	std::tuple<std::string, std::string, wxDateTime, bool>* data = new std::tuple<std::string, std::string, wxDateTime, bool>(winnerAlias, loserAlias, matchDate, tie);
 
 	event.SetClientData(data);
 	event.Skip();
@@ -290,7 +308,12 @@ void WinMatchRep::sortResultTable() {
 	}
 }
 
-void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit) {
+void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit, bool tie) {
+	if (forfeit && tie) {
+		wxMessageBox(wxString("A forfeit can not be a tie as well!"));
+		return;
+	}
+
 	matchTable->InsertItem(listViewItemID, wxString(date.Format(defaultFormatString)));
 	matchTable->SetItem(listViewItemID, 1, wxString(winnerAlias));
 	matchTable->SetItem(listViewItemID, 2, wxString(loserAlias));
@@ -299,7 +322,10 @@ void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, con
 	matchTable->SetItemData(listViewItemID, listViewItemID);
 
 	if (forfeit) {
-		matchTable->SetItemBackgroundColour(listViewItemID, *wxLIGHT_GREY);
+		matchTable->SetItemBackgroundColour(listViewItemID, wxColour(208, 208, 208));
+	}
+	else if (tie) {
+		matchTable->SetItemBackgroundColour(listViewItemID, wxColour(144, 144, 144));
 	}
 
 	listViewItemID++;
@@ -371,7 +397,19 @@ void WinMatchRep::clearResultTable() {
 	listViewItemID = 0;
 }
 
+// "Two"-postfix because "compareAlphabetically" is already in playerEdit
+// Would have to call this everytime before calling setMainAliases, if I tried to put it in MainWin
+bool compareAlphabeticallyTwo(std::string stringOne, std::string stringTwo) {
+
+	std::transform(stringOne.begin(), stringOne.end(), stringOne.begin(), tolower);
+	std::transform(stringTwo.begin(), stringTwo.end(), stringTwo.begin(), tolower);
+
+	return stringOne < stringTwo;
+}
+
 void WinMatchRep::setMainAliases(std::vector<std::string> newAliases) {
+	std::sort(newAliases.begin(), newAliases.end(), compareAlphabeticallyTwo);
+
 	wxArrayString aliasArray = wxArrayString();
 	for (auto currAlias = newAliases.begin(); currAlias != newAliases.end(); currAlias++) {
 		aliasArray.Add(*currAlias);

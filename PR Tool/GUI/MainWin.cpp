@@ -37,6 +37,7 @@ struct MainWin::Player {
 	std::vector<Rating> ratings;
 	unsigned int wins; // Wins in previous (pre-finalizing) periods
 	unsigned int losses; // Losses in previous (pre-finalizing) periods
+	unsigned int ties; // Ties in previous (pre-finalizing) periods
 	bool visible;
 };
 
@@ -105,7 +106,16 @@ MainWin::MainWin()
 
 	// insert loaded results into GUI
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
-		matchWindow->addResult(getMainAlias(currResult->result.getWinId()), getMainAlias(currResult->result.getLoseId()), currResult->date, currResult->forfeit);
+
+		if (currResult->result.getP1Id() == currResult->result.getWinnerId()) {
+			matchWindow->addResult(getMainAlias(currResult->result.getP1Id()), getMainAlias(currResult->result.getP2Id()), currResult->date, currResult->forfeit);
+		}
+		else if (currResult->result.getP2Id() == currResult->result.getWinnerId()) {
+			matchWindow->addResult(getMainAlias(currResult->result.getP2Id()), getMainAlias(currResult->result.getP1Id()), currResult->date, currResult->forfeit);
+		}
+		else {
+			matchWindow->addResult(getMainAlias(currResult->result.getP1Id()), getMainAlias(currResult->result.getP2Id()), currResult->date, currResult->forfeit, true);
+		}
 	}
 	matchWindow->sortResultTable();
 
@@ -142,19 +152,43 @@ void MainWin::finalize() {
 		// Count wins and losses per player and add to the wins/losses-field in their struct
 		unsigned int wins = 0;
 		unsigned int losses = 0;
+		unsigned int ties = 0;
 		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+
 			std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
 			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-				if (currPlayer->id == currResult->getWinId()) {
-					wins++;
+
+				bool isP1 = currPlayer->id == currResult->getP1Id();
+				bool isP2 = currPlayer->id == currResult->getP2Id();
+				
+				// Check if player is in result at all
+				if (isP1) {
+					if (currResult->getP1Id() == currResult->getWinnerId()) {
+						wins++;
+					}
+					else if (currResult->getP2Id() == currResult->getWinnerId()) {
+						losses++;
+					}
+					else {
+						ties++;
+					}
 				}
-				else if (currPlayer->id == currResult->getLoseId()) {
-					losses++;
+				else if (isP2) {
+					if (currResult->getP2Id() == currResult->getWinnerId()) {
+						wins++;
+					}
+					else if (currResult->getP1Id() == currResult->getWinnerId()) {
+						losses++;
+					}
+					else {
+						ties++;
+					}
 				}
 			}
 		}
 		currPlayer->wins += wins;
 		currPlayer->losses += losses;
+		currPlayer->ties += ties;
 
 		currPlayer->ratings[0] = currPlayer->ratings[currPlayer->ratings.size() - 1];
 		currPlayer->ratings.resize(1);
@@ -166,10 +200,6 @@ void MainWin::finalize() {
 
 	matchWindow->clearResultTable();
 	results.clear();
-
-	// to (re)set the wins/losses/win%-fields in periodWindow (should not be neccessary once...]
-	// ...finalize doesn't reset those anymore (see TODO above finalize-declaration in MainWin.h)
-	recalculateAllPeriods();
 }
 
 void MainWin::recalculateAllPeriods() {
@@ -178,6 +208,18 @@ void MainWin::recalculateAllPeriods() {
 
 	Glicko2::closeWorld();
 	Glicko2::createWorld();
+
+	std::set<Player> createdPlayers;
+
+	/* TODO this!!!
+	// Create players in the period they first got results in
+	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+		std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
+
+		// Results of current rating period
+		for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
+		}
+	}*/
 
 	for (unsigned int i = 0; i < playerBase.size(); i++) {
 
@@ -205,20 +247,24 @@ void MainWin::recalculateAllPeriods() {
 	auto newResults = std::multiset<Result, bool(*)(const Result&, const Result&)>(&compareResultDates);
 	// Go through results
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
-		// remember old winner's and loser's ID
-		unsigned int oldNewWinId = currResult->result.getWinId();
-		unsigned int oldNewLoseId = currResult->result.getLoseId();
+		// remember old players' and winner's ID
+		unsigned int oldNewP1Id = currResult->result.getP1Id();
+		unsigned int oldNewP2Id = currResult->result.getP2Id();
+		unsigned int oldNewWinnerId = currResult->result.getWinnerId();
 		// assign new ID
 		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
-			if (currId->first == oldNewWinId) {
-				oldNewWinId = currId->second;
+			if (currId->first == oldNewWinnerId) {
+				oldNewWinnerId = currId->second;
 			}
-			else if (currId->first == oldNewLoseId) {
-				oldNewLoseId = currId->second;
+			if (currId->first == oldNewP1Id) {
+				oldNewP1Id = currId->second;
+			}
+			else if (currId->first == oldNewP2Id) {
+				oldNewP2Id = currId->second;
 			}
 		}
 
-		Glicko2::Result newResult = Glicko2::Result(oldNewWinId, oldNewLoseId);
+		Glicko2::Result newResult = Glicko2::Result(oldNewP1Id, oldNewP2Id, oldNewWinnerId);
 
 		Result toAdd;
 		toAdd.result = newResult;
@@ -253,18 +299,38 @@ void MainWin::recalculateAllPeriods() {
 		if (currPlayer->visible) {
 			unsigned int wins = 0;
 			unsigned int losses = 0;
+			unsigned int ties = 0;
 			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
 				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-					if (currPlayer->id == currResult->getWinId()) {
-						wins++;
+					bool isP1 = currPlayer->id == currResult->getP1Id();
+					bool isP2 = currPlayer->id == currResult->getP2Id();
+
+					if (isP1) {
+						if (currResult->getP1Id() == currResult->getWinnerId()) {
+							wins++;
+						}
+						else if (currResult->getP2Id() == currResult->getWinnerId()) {
+							losses++;
+						}
+						else {
+							ties++;
+						}
 					}
-					else if (currPlayer->id == currResult->getLoseId()) {
-						losses++;
+					else if (isP2) {
+						if (currResult->getP2Id() == currResult->getWinnerId()) {
+							wins++;
+						}
+						else if (currResult->getP1Id() == currResult->getWinnerId()) {
+							losses++;
+						}
+						else {
+							ties++;
+						}
 					}
 				}
 			}
-			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses);
+			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses, currPlayer->ties + ties);
 		}
 	}
 	periodWindow->sortMatchTable();
@@ -304,19 +370,23 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 	// Go through results
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) {
 		// remember old winner's and loser's ID
-		unsigned int oldNewWinId = currResult->result.getWinId();
-		unsigned int oldNewLoseId = currResult->result.getLoseId();
+		unsigned int oldNewP1Id = currResult->result.getP1Id();
+		unsigned int oldNewP2Id = currResult->result.getP2Id();
+		unsigned int oldNewWinnerId = currResult->result.getWinnerId();
 		// assign new ID
 		for (auto currId = oldNewIdMap.begin(); currId != oldNewIdMap.end(); currId++) {
-			if (currId->first == oldNewWinId) {
-				oldNewWinId = currId->second;
+			if (currId->first == oldNewWinnerId) {
+				oldNewWinnerId = currId->second;
 			}
-			else if (currId->first == oldNewLoseId) {
-				oldNewLoseId = currId->second;
+			if (currId->first == oldNewP1Id) {
+				oldNewP1Id = currId->second;
+			}
+			else if (currId->first == oldNewP2Id) {
+				oldNewP2Id = currId->second;
 			}
 		}
 
-		Glicko2::Result newResult = Glicko2::Result(oldNewWinId, oldNewLoseId);
+		Glicko2::Result newResult = Glicko2::Result(oldNewP1Id, oldNewP2Id, oldNewWinnerId);
 
 		Result toAdd;
 		toAdd.result = newResult;
@@ -357,25 +427,45 @@ void MainWin::recalculateFromPeriod(const std::pair<wxDateTime, wxDateTime>& rat
 		if (currPlayer->visible) {
 			unsigned int wins = 0;
 			unsigned int losses = 0;
+			unsigned int ties = 0;
 			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 				std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
 				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-					if (currPlayer->id == currResult->getWinId()) {
-						wins++;
+					bool isP1 = currPlayer->id == currResult->getP1Id();
+					bool isP2 = currPlayer->id == currResult->getP2Id();
+
+					if (isP1) {
+						if (currResult->getP1Id() == currResult->getWinnerId()) {
+							wins++;
+						}
+						else if (currResult->getP2Id() == currResult->getWinnerId()) {
+							losses++;
+						}
+						else {
+							ties++;
+						}
 					}
-					else if (currPlayer->id == currResult->getLoseId()) {
-						losses++;
+					else if (isP2) {
+						if (currResult->getP2Id() == currResult->getWinnerId()) {
+							wins++;
+						}
+						else if (currResult->getP1Id() == currResult->getWinnerId()) {
+							losses++;
+						}
+						else {
+							ties++;
+						}
 					}
 				}
 			}
-			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses);
+			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses, currPlayer->ties + ties);
 		}
 	}
 	periodWindow->sortMatchTable();
 }
 
 
-unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector, unsigned int wins, unsigned int losses, bool visibility) {
+unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector, unsigned int wins, unsigned int losses, unsigned int ties, bool visibility) {
 	if (atLeastOneAlias.empty()) {
 		wxMessageBox(wxString("Tried to add player without alias for some reason. \n" "No player added."), wxString("Alias-list to initialize was empty"));
 		return -1;
@@ -417,6 +507,7 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 	toAdd.ratings = *optionalRatingVector;
 	toAdd.wins = wins;
 	toAdd.losses = losses;
+	toAdd.ties = ties;
 	toAdd.visible = visibility;
 
 	playerBase.push_back(toAdd);;
@@ -427,7 +518,7 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 	// Add player to the rating-periods rating table, if visible
 	if (visibility) {
 		periodWindow->addPlayer(id, atLeastOneAlias[0]);
-		periodWindow->updatePlayer(id, (*optionalRatingVector)[optionalRatingVector->size() - 1].rating, 0, 0);
+		periodWindow->updatePlayer(id, (*optionalRatingVector)[optionalRatingVector->size() - 1].rating, 0, 0, 0);
 		periodWindow->sortMatchTable();
 	}
 
@@ -444,9 +535,18 @@ void MainWin::removePlayer(unsigned int id) {
 			// remove all results including the player
 			auto currResult = results.begin();
 			for (; currResult != results.end(); ) {
-				if (currResult->result.getWinId() == id || currResult->result.getLoseId() == id) {
-					std::string winnerAlias = getMainAlias(currResult->result.getWinId());
-					std::string loserAlias = getMainAlias(currResult->result.getLoseId());
+				if (currResult->result.getP1Id() == id || currResult->result.getP2Id() == id) {
+					std::string winnerAlias; 
+					std::string loserAlias;
+
+					if (currResult->result.getP2Id() == currResult->result.getWinnerId()) {
+						winnerAlias = getMainAlias(currResult->result.getP2Id());
+						loserAlias = getMainAlias(currResult->result.getP1Id());
+					} else {
+						// in this case either player 1 is the winner or the result is a tie in which case we wanna put player 1 first
+						winnerAlias = getMainAlias(currResult->result.getP1Id());
+						loserAlias = getMainAlias(currResult->result.getP2Id());
+					}
 
 					matchWindow->removeResult(winnerAlias, loserAlias, currResult->date); //TODO check back here if forfeit-field is needed
 
@@ -606,7 +706,6 @@ bool MainWin::loadWorld() {
 	std::ifstream ifs("players.json");
 
 	if (ifs.fail()) { // If the file does not exist yet(first time running app), it will be created on exiting the app, when saving the settings.
-		//wxMessageBox(wxString("Can not open or read the file players.json. Playerbase will not be loaded.\n" "File will be created upon exiting.\n"), wxString("File could not be opened")); // 
 		return false;
 	}
 	Json::CharReaderBuilder reader;
@@ -642,7 +741,6 @@ bool MainWin::loadWorld() {
 		// storing the players' aliases
 		for (unsigned int j = 0; j < players[i]["aliases"].size(); j++) {
 			aliases.push_back(players[i]["aliases"][j].asString());
-			//wxMessageBox(wxString("    alias: " + players[i]["aliases"][j].asString() + " pushed into alias-vector"));
 		}
 
 		std::vector<Rating> ratingVector; // vector containing Rating for each rating period (start values -> current)
@@ -662,6 +760,7 @@ bool MainWin::loadWorld() {
 		// could use the default values of addPlayer, but this spares us the ifception
 		unsigned int wins = 0;
 		unsigned int losses = 0;
+		unsigned int ties = 0;
 
 		if (players[i].isMember("wins")) {
 			wins = players[i]["wins"].asUInt64();
@@ -669,12 +768,15 @@ bool MainWin::loadWorld() {
 		if (players[i].isMember("losses")) {
 			losses = players[i]["losses"].asUInt64();
 		}
+		if (players[i].isMember("ties")) {
+			ties = players[i]["ties"].asUInt64();
+		}
 
 		if (players[i].isMember("visible")) {
-			addNewPlayer(aliases, &ratingVector, wins, losses, players[i]["visible"].asBool());
+			addNewPlayer(aliases, &ratingVector, wins, losses, ties, players[i]["visible"].asBool());
 		}
 		else {
-			addNewPlayer(aliases, &ratingVector, wins, losses);
+			addNewPlayer(aliases, &ratingVector, wins, losses, ties);
 		}
 	}
 
@@ -707,8 +809,6 @@ bool MainWin::saveWorld() {
 		Json::Value currPlayerRatings(Json::arrayValue); // equal to the "rating values" in players.json (to save all rating values for every period)
 
 		for (auto currRating = currPlayerBasePlayer->ratings.begin(); currRating != currPlayerBasePlayer->ratings.end(); currRating++) {
-			//wxMessageBox(wxString("Adding ratings to player with first alias " + std::get<1>(*currPlayerBasePlayer)[0]));
-
 			Json::Value ratingValsToAdd; // Contains the rating values of the currently saved period
 			ratingValsToAdd["rating"] = currRating->rating;
 			ratingValsToAdd["deviation"] = currRating->deviation;
@@ -719,6 +819,7 @@ bool MainWin::saveWorld() {
 		currEntry["rating values"] = currPlayerRatings;
 		currEntry["wins"] = currPlayerBasePlayer->wins;
 		currEntry["losses"] = currPlayerBasePlayer->losses;
+		currEntry["ties"] = currPlayerBasePlayer->ties;
 		currEntry["aliases"] = currAliases;
 		currEntry["visible"] = currPlayerBasePlayer->visible;
 
@@ -765,27 +866,42 @@ bool MainWin::loadResults() {
 	const Json::Value& resultsLoaded = obj["results"]; // array of results consisting of the main-alias of winner and loser and date
 
 	for (auto currResult = resultsLoaded.begin(); currResult != resultsLoaded.end(); currResult++) {
-		unsigned int winnerID = playerIDByAlias((*currResult)["winner"].asString());
-		unsigned int loserID = playerIDByAlias((*currResult)["loser"].asString());
+		unsigned int p1Id = playerIDByAlias((*currResult)["player 1"].asString());
+		unsigned int p2Id = playerIDByAlias((*currResult)["player 2"].asString());
+		bool p1Won = (*currResult)["player 1"].asString() == (*currResult)["winner"].asString();
+		bool tie = (*currResult)["winner"].asString() == "";
 
-		if (winnerID == -1) {
+		if (p1Id == -1) {
 			wxMessageBox(wxString("Unable to assign player with the following alias to a player from the playerbase: " +
-				(*currResult)["winner"].asString() + ". \n" "Please assign manually or result will be disregarded"),
+				(*currResult)["player 1"].asString() + ". \n" "Please assign manually or result will be disregarded"),
 				wxString("Unexpected alias while reading results.json"));
-			winnerID = assignNewAlias((*currResult)["winner"].asString());
+			p1Id = assignNewAlias((*currResult)["player 1"].asString());
 		}
 
 		// We do not wanna show the assignPlayerDialog again, if it was shown for the winner and the user clicked cancel (winnerID still -1)
-		if (loserID == -1 && winnerID != -1) {
+		if (p2Id == -1 && p1Id != -1) {
 			wxMessageBox(wxString("Unable to assign player with the following alias to a player from the playerbase: " +
-				(*currResult)["loser"].asString() + ". \n" "Please assign manually or result will be disregarded"),
+				(*currResult)["player 2"].asString() + ". \n" "Please assign manually or result will be disregarded"),
 				wxString("Unexpected alias while reading results.json"));
-			loserID = assignNewAlias((*currResult)["loser"].asString());
+			p2Id = assignNewAlias((*currResult)["player 2"].asString());
 		}
 
 		// if one of the IDs is still -1 here or both players got assigned to the same name, skip adding the result
-		if (!(winnerID == -1 || loserID == -1 || winnerID == loserID)) {
-			Glicko2::Result theResult = Glicko2::Result(winnerID, loserID);
+		if (!(p1Id == -1 || p2Id== -1 || p1Id == p2Id)) {
+			unsigned int winnerId;
+			if (tie) {
+				winnerId = -1;
+			}
+			else {
+				if (p1Won) {
+					winnerId = p1Id;
+				}
+				else {
+					winnerId = p2Id;
+				}
+			}
+			Glicko2::Result theResult = Glicko2::Result(p1Id, p2Id, winnerId);
+
 			wxDateTime resultsDate;
 			if (!resultsDate.ParseISODate((*currResult)["date"].asString())) {
 				wxMessageBox(wxString("Unable to parse following date: " + (*currResult)["date"].asString() + "\n" "Result will be disregarded"),
@@ -800,7 +916,7 @@ bool MainWin::loadResults() {
 				results.insert(toAdd);
 			}
 		}
-		else if (winnerID == loserID && winnerID != -1) {
+		else if (p1Id == p2Id && p1Id != -1) {
 			wxMessageBox(wxString("Result not added. Both aliases were assigned to the same player."));
 		}
 	}
@@ -824,8 +940,9 @@ bool MainWin::saveResults() {
 
 	for (auto currResult = results.begin(); currResult != results.end(); currResult++) { // iterate through playerbase
 		Json::Value resultToAdd;
-		resultToAdd["winner"] = getMainAlias(currResult->result.getWinId());
-		resultToAdd["loser"] = getMainAlias(currResult->result.getLoseId());
+		resultToAdd["player 1"] = getMainAlias(currResult->result.getP1Id());
+		resultToAdd["player 2"] = getMainAlias(currResult->result.getP2Id());
+		resultToAdd["winner"] = getMainAlias(currResult->result.getWinnerId());
 		resultToAdd["date"] = currResult->date.FormatISODate().ToStdString();
 		resultToAdd["forfeit"] = currResult->forfeit;
 
@@ -1011,8 +1128,8 @@ void MainWin::OnRatPerFinBtn(wxCommandEvent& event) {
 
 // Match report tab
 void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
-	// resultTuple: 0: winner, 1: loser, 2: date
-	std::tuple<std::string, std::string, wxDateTime, bool>* resultTuple = (std::tuple<std::string, std::string, wxDateTime, bool>*)event.GetClientData();
+	// resultTuple: 0: winner, 1: loser, 2: date, 3: forfeit, 4: tie
+	std::tuple<std::string, std::string, wxDateTime, bool, bool>* resultTuple = (std::tuple<std::string, std::string, wxDateTime, bool, bool>*)event.GetClientData();
 	if (resultTuple == nullptr) {
 		wxMessageBox(wxString("Result could not be inserted."), wxString("Invalid result"));
 		delete resultTuple;
@@ -1050,7 +1167,13 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 		return;
 	}
 
-	Glicko2::Result resultToAdd = Glicko2::Result(winID, loseID);
+	Glicko2::Result resultToAdd;
+	if (std::get<4>(*resultTuple)) {
+		resultToAdd = Glicko2::Result(winID, loseID, -1);
+	}
+	else {
+		resultToAdd = Glicko2::Result(winID, loseID, winID);
+	}
 
 	Result toAdd;
 	toAdd.result = resultToAdd;
@@ -1058,7 +1181,7 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	toAdd.forfeit = std::get<3>(*resultTuple);
 
 	results.insert(toAdd);
-	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple), toAdd.forfeit);
+	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple), toAdd.forfeit, std::get<4>(*resultTuple));
 	matchWindow->sortResultTable();
 
 	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
@@ -1072,30 +1195,37 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 }
 
 void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
-	// event data is a tuple consisting of <winnerAlias, loserAlias, matchDate>
-	std::tuple <std::string, std::string, wxDateTime>* data = (std::tuple <std::string, std::string, wxDateTime>*)event.GetClientData();
+	// event data is a tuple consisting of <winnerAlias, loserAlias, matchDate, tie>
+	std::tuple <std::string, std::string, wxDateTime, bool>* data = (std::tuple <std::string, std::string, wxDateTime, bool>*)event.GetClientData();
 
 	// Go through results until result to be removed is found
 	for(auto currResult = results.begin(); currResult != results.end(); currResult++) {
 		// compare Dates first
 		if (currResult->date.IsSameDate(std::get<2>(*data))) {
-			// compare winner alias
-			if (getMainAlias(currResult->result.getWinId()) == std::get<0>(*data)) {
-				// compare loser alias
-				if (getMainAlias(currResult->result.getLoseId()) == std::get<1>(*data)) {
-					results.erase(currResult);
-					matchWindow->removeResult();
 
-					// If match was inside of an existing rating period recalculate from that period on
-					for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-						if ((std::get<2>(*data).IsLaterThan(currPeriod->first) || std::get<2>(*data).IsEqualTo(currPeriod->first))
-							&& (std::get<2>(*data).IsEarlierThan(currPeriod->second) || std::get<2>(*data).IsEqualTo(currPeriod->first))) {
-							recalculateFromPeriod(*currPeriod);
+			// check if given winner(player 1 for ties) alias is a player in the current result
+			if (getMainAlias(currResult->result.getP1Id()) == std::get<0>(*data)) {
+				// compare other alias
+								
+				if (getMainAlias(currResult->result.getP2Id()) == std::get<1>(*data)) {
+					// if the result to remove is a tie the winnerId should be -1 (or we'd remove the wrong result)
+					if ((std::get<3>(*data) && currResult->result.getWinnerId() == -1)
+						|| (!std::get<3>(*data) && currResult->result.getWinnerId() != -1)) {
+						results.erase(currResult);
+						matchWindow->removeResult();
+
+
+						// If match was inside of an existing rating period recalculate from that period on
+						for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+							if ((std::get<2>(*data).IsLaterThan(currPeriod->first) || std::get<2>(*data).IsEqualTo(currPeriod->first))
+								&& (std::get<2>(*data).IsEarlierThan(currPeriod->second) || std::get<2>(*data).IsEqualTo(currPeriod->second))) {
+								recalculateFromPeriod(*currPeriod);
+							}
 						}
-					}
 
-					delete data;
-					return;
+						delete data;
+						return;
+					}
 				}
 			}
 		}
@@ -1276,7 +1406,7 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 						// set winner and loser by scores
 						if (std::stoi(p1Score) > std::stoi(p2Score)) {
 							// add results to result-collection-thingy(set, a set of sets, ha!)
-							Glicko2::Result resultToAdd = Glicko2::Result(p1Id, p2Id);
+							Glicko2::Result resultToAdd = Glicko2::Result(p1Id, p2Id, p1Id);
 
 							Result toAdd;
 							toAdd.result = resultToAdd;
@@ -1286,9 +1416,9 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 							results.insert(toAdd);
 							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfMatch);
 						}
-						else {
+						else if (std::stoi(p1Score) < std::stoi(p2Score)) {
 							// add results to result-collection-thingy(set, a set of sets, ha!)
-							Glicko2::Result resultToAdd = Glicko2::Result(p2Id, p1Id);
+							Glicko2::Result resultToAdd = Glicko2::Result(p2Id, p1Id, p2Id);
 
 							Result toAdd;
 							toAdd.result = resultToAdd;
@@ -1297,6 +1427,18 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 
 							results.insert(toAdd);
 							matchWindow->addResult(getMainAlias(p2Id), getMainAlias(p1Id), dateOfMatch);
+						}
+						else {
+							// if the scores are equal, it's a tie
+							Glicko2::Result resultToAdd = Glicko2::Result(p1Id, p2Id, -1);
+
+							Result toAdd;
+							toAdd.result = resultToAdd;
+							toAdd.date = dateOfMatch;
+							toAdd.forfeit = false;
+
+							results.insert(toAdd);
+							matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfMatch, false, true);
 						}
 					}
 				}
@@ -1326,7 +1468,7 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 						dateOfMatch.ParseFormat(wxString(currMatch["completed_at"].asString().substr(0, 10)), wxString("%Y-%m-%d"));
 
 						// add results to result-collection-thingy(set, a set of sets, ha!)
-						Glicko2::Result resultToAdd = Glicko2::Result(winId, loseId);
+						Glicko2::Result resultToAdd = Glicko2::Result(winId, loseId, winId);
 
 						Result toAdd;
 						toAdd.result = resultToAdd;
@@ -1498,19 +1640,39 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 				// Count wins and losses
 				unsigned int wins = 0;
 				unsigned int losses = 0;
+				unsigned int ties = 0;
 				for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
 					std::vector<Glicko2::Result> relevantResults = getResultsInPeriod(currPeriod->first, currPeriod->second);
 					for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-						if (currPlayer->id == currResult->getWinId()) {
-							wins++;
+						bool isP1 = currResult->getP1Id() == id;
+						bool isP2 = currResult->getP1Id() == id;
+
+						if (isP1) {
+							if (currResult->getP1Id() == currResult->getWinnerId()) {
+								wins++;
+							}
+							else if (currResult->getP2Id() == currResult->getWinnerId()) {
+								losses++;
+							}
+							else {
+								ties++;
+							}
 						}
-						else if (currPlayer->id == currResult->getLoseId()) {
-							losses++;
+						if(isP2) {
+							if (currResult->getP2Id() == currResult->getWinnerId()) {
+								wins++;
+							}
+							else if (currResult->getP1Id() == currResult->getWinnerId()) {
+								losses++;
+							}
+							else {
+								ties++;
+							}
 						}
 					}
 				}
 				periodWindow->addPlayer(currPlayer->id, currPlayer->aliases[0]);
-				periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses);
+				periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses, currPlayer->ties + ties);
 			}
 			else {
 				periodWindow->removePlayer(currPlayer->id);

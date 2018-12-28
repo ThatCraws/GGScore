@@ -1,9 +1,9 @@
 #ifndef __MAINWIN_H
 #define __MAINWIN_H
 
-#include<vector>
-#include<set>
-#include"glkResult.h"
+#include <vector>
+#include <set>
+#include "glkResult.h"
 
 // for the event handler of the Tau-constant
 #include <wx/spinctrl.h>
@@ -79,7 +79,7 @@ private:
 
 	// Handling adding/removing from playerbase/periods/results
 
-	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector = nullptr, unsigned int wins = 0, unsigned int losses = 0, bool visibility = true);
+	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector = nullptr, unsigned int wins = 0, unsigned int losses = 0, unsigned int ties = 0, bool visibility = true);
 	void removePlayer(unsigned int id);
 
 	/* ------------ findPeriod ------------

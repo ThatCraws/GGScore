@@ -19,13 +19,14 @@ WinRatPer::WinRatPer(wxWindow* parent, wxWindowID winid)
 
 	// ------------ Rating Table ------------
 	ratingTable = new wxListView(this, ID_RAT_PER_PLA_LIST, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
-	float onePart = (winMinWidth - 30) / 21;
-	ratingTable->InsertColumn(0, wxString("Name"), 0, (int)onePart * 5);
+	float onePart = (winMinWidth - 30) / 24;
+	ratingTable->InsertColumn(0, wxString("Name"), 0, (int)onePart * 6);
 	ratingTable->InsertColumn(1, wxString("Rating"), 0, (int)onePart * 4);
 	ratingTable->InsertColumn(2, wxString("Sets"), 0,(int)onePart * 3);		
 	ratingTable->InsertColumn(3, wxString("Wins"), 0,(int)onePart * 3);		
 	ratingTable->InsertColumn(4, wxString("Losses"), 0, (int)onePart * 3);	
-	ratingTable->InsertColumn(5, wxString("Win %"), 0, (int)onePart * 3);	
+	ratingTable->InsertColumn(5, wxString("Ties"), 0, (int)onePart * 3);	
+	ratingTable->InsertColumn(6, wxString("Win %"), 0, (int)onePart * 3);	
 	ratingViewItemID = 0; // will be used to assign IDs to the added items. Could probably just use getItemCount()...
 	ratingViewSortedColumn = 1; // sort by rating by default
 	ratingViewDescending = true; // sort descending by default
@@ -141,7 +142,6 @@ void WinRatPer::OnBtnRemPer(wxCommandEvent& event) {
 	long id = periodTable->GetFirstSelected();
 
 	if (id == -1) {
-		//wxMessageBox(wxString("No Period to remove selected!"), wxString("Invalid operation"));
 		return;
 	}
 
@@ -333,7 +333,7 @@ void WinRatPer::addPlayer(unsigned int id, std::string displayAlias) {
 	ratingViewItemID++;
 }
 
-void WinRatPer::updatePlayer(unsigned int id, double rating, unsigned int wins, unsigned int losses) {
+void WinRatPer::updatePlayer(unsigned int id, double rating, unsigned int wins, unsigned int losses, unsigned int ties) {
 	long item = -1;
 	item = ratingTable->GetNextItem(item);
 	while (ratingTable->GetItemData(item) != id) {
@@ -346,14 +346,15 @@ void WinRatPer::updatePlayer(unsigned int id, double rating, unsigned int wins, 
 
 	float winPercent = 0;
 	if (wins + losses != 0) {
-		winPercent = (float)wins / (((float)wins + (float)losses) / 100);
+		winPercent = (float)wins / (((float)wins + (float)losses + (float)ties) / 100);
 	}
 
 	ratingTable->SetItem(item, 1, wxString(std::to_string(rating).substr(0, std::to_string(rating).find_last_of('.'))));
-	ratingTable->SetItem(item, 2, wxString(std::to_string(wins + losses)));
+	ratingTable->SetItem(item, 2, wxString(std::to_string(wins + losses + ties)));
 	ratingTable->SetItem(item, 3, wxString(std::to_string(wins)));
 	ratingTable->SetItem(item, 4, wxString(std::to_string(losses)));
-	ratingTable->SetItem(item, 5, wxString(std::to_string((int)winPercent)));
+	ratingTable->SetItem(item, 5, wxString(std::to_string(ties)));
+	ratingTable->SetItem(item, 6, wxString(std::to_string((int)winPercent)));
 
 	/* This gets called after every player added slowing down startup... Supply method to call once when player adding/updating is done...
 	std::tuple<wxListView*, int, bool>* sortData = new std::tuple<wxListView*, int, bool>(ratingTable, ratingViewSortedColumn, ratingViewDescending);
