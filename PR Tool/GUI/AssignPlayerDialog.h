@@ -6,7 +6,7 @@ class wxChoice;
 
 class AssignPlayerDialog : public wxDialog {
 public:
-	AssignPlayerDialog(wxWindow* parent, wxWindowID id, const wxString& title, const std::string aliasToAssign, wxArrayString assignables,
+	AssignPlayerDialog(wxWindow* parent, wxWindowID id, const wxString& title, const std::string aliasToAssign, std::vector<std::string> assignablesVector,
 		double defaultRating, double defaultDeviation, double defaultVolatility);
 
 	/* ------------ getAliasToAssignTo ------------

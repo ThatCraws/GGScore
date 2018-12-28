@@ -1,3 +1,5 @@
 TODO
 								
 - Use const qualifier where possible
+
+- Let Users put an optional description for manually added results.

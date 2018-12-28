@@ -605,14 +605,9 @@ std::vector<std::string> MainWin::retrieveMainAliases() {
 }
 
 unsigned int MainWin::assignNewAlias(std::string aliasToAssign) {
-	// Convert existing aliases to wxArrayString to show in choice-CTRL
-	wxArrayString existingMainAliases = wxArrayString();
 
-	std::vector<std::string> toMakeStringArray = retrieveMainAliases();
+	std::vector<std::string> existingMainAliases = retrieveMainAliases();
 
-	for (auto currAlias = toMakeStringArray.begin(); currAlias != toMakeStringArray.end(); currAlias++) {
-		existingMainAliases.push_back(*currAlias);
-	}
 
 	// Create dialog to assign the unknown alias to a player or create a new one
 	AssignPlayerDialog* assignDialog = new AssignPlayerDialog(this, wxID_ANY, wxString("Player ''" + aliasToAssign + " not found"), aliasToAssign, existingMainAliases,

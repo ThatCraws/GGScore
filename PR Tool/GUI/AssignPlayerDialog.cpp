@@ -7,10 +7,27 @@
 
 #include "AssignPlayerDialog.h"
 
-AssignPlayerDialog::AssignPlayerDialog(wxWindow* parent, wxWindowID id, const wxString& title, const std::string aliasToAssign, wxArrayString assignables,
+// "Three"-postfix because "compareAlphabetically" is already in playerEdit
+// Would have to call this everytime before creating assignPlayerDialog, if I put it in MainWin
+bool compareAlphabeticallyThree(std::string stringOne, std::string stringTwo) {
+
+	std::transform(stringOne.begin(), stringOne.end(), stringOne.begin(), tolower);
+	std::transform(stringTwo.begin(), stringTwo.end(), stringTwo.begin(), tolower);
+
+	return stringOne < stringTwo;
+}
+
+AssignPlayerDialog::AssignPlayerDialog(wxWindow* parent, wxWindowID id, const wxString& title, const std::string aliasToAssign, std::vector<std::string> assignablesVector,
 	double defaultRating, double defaultDeviation, double defaultVolatility)
 	: wxDialog(parent, id, title, wxDefaultPosition, wxDefaultSize, wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER)
 {
+	std::sort(assignablesVector.begin(), assignablesVector.end(), compareAlphabeticallyThree);
+
+	wxArrayString assignables;
+	for (auto currAlias = assignablesVector.begin(); currAlias != assignablesVector.end(); currAlias++) {
+		assignables.push_back(wxString(*currAlias));
+	}
+
 	// Add the "add new player"-option to the alias array
 	assignables.Insert(wxString("<New player>"), 0);
 	// Since New player is the starting choice, we start in createMode
