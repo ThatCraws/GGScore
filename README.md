@@ -2,7 +2,7 @@
 Application to create power rankings via the Glicko-2 algorithm.
 
 The basic idea of this application is to create Power Rankings.
-Originally for competitive Super Smash Bros. for the Nintendo Gamecube, but you can technically create PRs for every competitive discipline (without ties).
+Originally for competitive Super Smash Bros. for the Nintendo Gamecube, but you can technically create PRs for every competitive discipline.
 The ratings are created via the Glicko-2 algorithm.
 
 ## Basic usage/features
@@ -34,7 +34,7 @@ This is the main class containing the actual algorithm and using the other class
  Represents a player consisting of an ID and the rating values being the actual rating, the deviation and the volatility.
  This class is generally used by the Glicko-2 API creating players in the world, but it also supplies the user with getters to read the ID and rating values.
  - Result -
- Represents a result, this class holds only the IDs for the winner and loser of that match(if you want to implement the possibility to report ties change to player 1 and 2 and save the winner separately, optimally with a bool like player1winning for example).
+ Represents a result, this class holds the IDs for player 1, player 2 and the winner's ID. If you want to report a tie the winner ID must be something different than the players' IDs (-1 is recommended though).
  Results do not get created internally neither are they stored. This class is meant to be used by the user to construct and bundle results (per rating period) and then give them to the algorithm.
  
  ### GUI
