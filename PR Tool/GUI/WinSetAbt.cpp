@@ -35,6 +35,14 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 	// <=========== Rating Calculation ==========>
 	wxStaticBoxSizer* calcSizer = new wxStaticBoxSizer(wxVERTICAL, this, wxString("Rating Calculation"));
 
+	// ------------ Include forfeits ------------
+	forfeitCheck = new wxCheckBox(this, ID_SET_ABT_INC_BOX, wxString("Include forfeits in rating: "), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
+	forfeitCheck->SetToolTip(wxString("Include forfeited matches, when calculating rating"));
+
+	calcSizer->AddSpacer(5);
+	calcSizer->Add(forfeitCheck);
+	calcSizer->AddSpacer(5);
+
 	// -=========== Start values ==========-
 	wxStaticBoxSizer* valSizerBox = new wxStaticBoxSizer(wxHORIZONTAL, this, wxString("Start values"));
 	wxGridSizer* valGridSizer = new wxGridSizer(2, wxSize(winMinWidth / 8, -1));
@@ -81,14 +89,6 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 
 	constSizerBox->Add(constGridSizer, 0, wxEXPAND);
 	calcSizer->Add(constSizerBox, 0, wxEXPAND);
-
-	// ------------ Include forfeits ------------
-	forfeitCheck = new wxCheckBox(this, ID_SET_ABT_INC_BOX, wxString("Include forfeits in rating: "), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
-	forfeitCheck->SetToolTip(wxString("Include forfeited matches, when calculating rating"));
-
-	calcSizer->AddSpacer(5);
-	calcSizer->Add(forfeitCheck);
-	calcSizer->AddSpacer(5);
 
 	// -=========== About ==========-
 	wxStaticBoxSizer* aboutSizer = new wxStaticBoxSizer(wxVERTICAL, this, wxString("About"));
