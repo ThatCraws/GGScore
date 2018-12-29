@@ -29,6 +29,6 @@ enum {
 
 const wxString defaultFormatString = wxString("%d.%m.%Y");
 const int winMinWidth = 400;
-const int winMinHeight = 330;
+const int winMinHeight = 375;
 
 #endif

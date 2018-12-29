@@ -26,17 +26,14 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 
 	challGridSizer->Add(keyTxt);
 	challGridSizer->Add(keyVal);
-
-	// ------------ Include forfeits ------------
-	forfeitCheck = new wxCheckBox(this, ID_SET_ABT_INC_BOX, wxString("Include forfeits in rating: "), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
-	forfeitCheck->SetToolTip(wxString("Include forfeited matches, when calculating rating"));
-
-	challGridSizer->Add(forfeitCheck);
 		
 	wxHyperlinkCtrl* apiInfoText = new wxHyperlinkCtrl(this, wxID_ANY, wxString("You can get/generate an API key here"), wxString("https://challonge.com/settings/developer"));
 
 	challSizerBox->Add(challGridSizer, 1, wxEXPAND);
 	challSizerBox->Add(apiInfoText);
+
+	// <=========== Rating Calculation ==========>
+	wxStaticBoxSizer* calcSizer = new wxStaticBoxSizer(wxVERTICAL, this, wxString("Rating Calculation"));
 
 	// -=========== Start values ==========-
 	wxStaticBoxSizer* valSizerBox = new wxStaticBoxSizer(wxHORIZONTAL, this, wxString("Start values"));
@@ -61,14 +58,14 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 
 	// ------------ Volatility ------------
 	wxStaticText* volatilityTxt = new wxStaticText(this, wxID_ANY, wxString("Volatility: "));
-	volatilityVal = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 0.0, 0.1, volatility, 0.001);
+	volatilityVal = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS | wxALIGN_RIGHT, 0.0, 0.1, volatility, 0.001);
 	volatilityTxt->SetToolTip(wxString("The expected fluctuation in the rating, higher for a player that is involved in upsets a lot"));
 	volatilityVal->SetToolTip(wxString("The expected fluctuation in the rating, higher for a player that is involved in upsets a lot"));
 	valGridSizer->Add(volatilityTxt);
 	valGridSizer->Add(volatilityVal);
 
-
 	valSizerBox->Add(valGridSizer, 1, wxEXPAND);
+	calcSizer->Add(valSizerBox, 0, wxEXPAND);
 
 	// -=========== System constants ==========-
 	wxStaticBoxSizer* constSizerBox = new wxStaticBoxSizer(wxHORIZONTAL, this, wxString("System Constant(s)"));
@@ -76,13 +73,22 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 
 	// ------------ Tau ------------
 	wxStaticText* tauTxt = new wxStaticText(this, wxID_ANY, wxString("Tau: "));
-	tauVal = new wxSpinCtrlDouble(this, ID_SET_ABT_TAU_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS, 0.2, 2.0,  tau, 0.01);
+	tauVal = new wxSpinCtrlDouble(this, ID_SET_ABT_TAU_SPIN, wxEmptyString, wxDefaultPosition, wxSize(100, -1), wxSP_ARROW_KEYS | wxALIGN_RIGHT, 0.2, 2.0,  tau, 0.01);
 	tauTxt->SetToolTip(wxString("Constrains the change in volatility over time"));
 	tauVal->SetToolTip(wxString("Constrains the change in volatility over time"));
 	constGridSizer->Add(tauTxt);
 	constGridSizer->Add(tauVal);
 
-	constSizerBox->Add(constGridSizer, 1, wxEXPAND);
+	constSizerBox->Add(constGridSizer, 0, wxEXPAND);
+	calcSizer->Add(constSizerBox, 0, wxEXPAND);
+
+	// ------------ Include forfeits ------------
+	forfeitCheck = new wxCheckBox(this, ID_SET_ABT_INC_BOX, wxString("Include forfeits in rating: "), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
+	forfeitCheck->SetToolTip(wxString("Include forfeited matches, when calculating rating"));
+
+	calcSizer->AddSpacer(5);
+	calcSizer->Add(forfeitCheck);
+	calcSizer->AddSpacer(5);
 
 	// -=========== About ==========-
 	wxStaticBoxSizer* aboutSizer = new wxStaticBoxSizer(wxVERTICAL, this, wxString("About"));
@@ -92,13 +98,14 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 		".json-file management done using JsonCpp\n"
 		"Networking done using libcurl\n"
 		"Glicko-2 API created by J.A.K.\n\n"
-		"PR Tool created by J.A.K."), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxBORDER_NONE);
+		"GGScore created by J.A.K."), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxBORDER_NONE);
 	aboutSizer->Add(aboutText, 1, wxEXPAND);
 
 	// Add the Sizers to main sizer
 	mainSizer->Add(challSizerBox, 0, wxEXPAND);
-	mainSizer->Add(valSizerBox, 0, wxEXPAND);
-	mainSizer->Add(constSizerBox, 0, wxEXPAND);
+	mainSizer->AddSpacer(5);
+	mainSizer->Add(calcSizer, 0, wxEXPAND);
+	mainSizer->AddSpacer(5);
 	mainSizer->Add(aboutSizer, 1, wxEXPAND);
 
 	SetSizer(mainSizer);
