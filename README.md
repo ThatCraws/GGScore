@@ -7,9 +7,9 @@ The ratings are created via the Glicko-2 algorithm.
 
 ## Basic usage/features
 
-The general idea to use this tool is by importing tournaments from challonge.com. For this you will need a developer API key from your challonge-account.
-Then the players' names/aliases from the tournament's sets have to be associated with players. You can either associate an alias with an existing player or create a new one(when importing the first tournament you will have to create all new players of course). The results consisting of the winner, loser and date of the match will be added to the table in the "Match Report"-tab and can be manually removed (or added), if necessarry. 
-Once you imported your tourneys you have to enter a rating period. The algorithm will only take results into account that happened within a rating period. It is recommended to let a player have at least 10-15 games in a rating period to make his rating accurate(especially for the first rating period).
+The general idea to use this tool is by importing tournaments from [challonge.com](https://www.challonge.com/). For this you will need a developer API key from your challonge-account.
+Then the players' names/aliases from the tournament's sets have to be associated with players. You can either associate an alias with an existing player or create a new one (when importing the first tournament you will have to create all new players of course). The results consisting of the winner, loser and date of the match will be added to the table in the "Match Report"-tab and can be manually removed (or added), if necessarry. 
+Once you imported your tourneys you have to enter a rating period. The algorithm will only take results into account that happened within a rating period. It is recommended to let a player have at least 10-15 games in a rating period to make his rating accurate (especially for the first rating period).
 If the "Match Report" gets too clustered you can use the "Finalize Ratings"-option in the "Rating Periods"-tab (where the actual PR is shown as well) to clear the tables displaying the results and rating periods. This also means that you will not be able to remove/add results from the rating periods existing before finalizing though (thus finalizing the ratings up to that point). However, you can add/remove and import results as before from then on.
 
 Keep in mind that only results within a rating period will be used to calculate a rating.
@@ -20,7 +20,7 @@ Keep in mind that only results within a rating period will be used to calculate 
  
 ## About the implementation
  
- This application consists of two modules: The Glicko-2 API, which supplies a (slightly) modified(/unfinished?) version of the Glicko-2 algorithm and the GUI supplying the user with means to use the API and visualize the results of the calculations. It also associates the IDs of the Glicko-Players with their aliases.
+ This application consists of two modules: The Glicko-2 API, which supplies the Glicko-2 algorithm and the GUI supplying the user with means to use the API and visualize the results of the calculations. It also associates the IDs of the Glicko-Players with their aliases.
  
  ### Glicko-2 API
  
@@ -32,15 +32,17 @@ This is the main class containing the actual algorithm and using the other class
  This class is mainly used to hold and manage the player base. It also saves the system constant "Tau".
  - Player -
  Represents a player consisting of an ID and the rating values being the actual rating, the deviation and the volatility.
- This class is generally used by the Glicko-2 API creating players in the world, but it also supplies the user with getters to read the ID and rating values.
+ This class is mainly used by the Glicko-2 API to create players in the world, but it also supplies the user with getters to read the ID and rating values.
  - Result -
  Represents a result, this class holds the IDs for player 1, player 2 and the winner's ID. If you want to report a tie the winner ID must be something different than the players' IDs (-1 is recommended though).
  Results do not get created internally neither are they stored. This class is meant to be used by the user to construct and bundle results (per rating period) and then give them to the algorithm.
  
  ### GUI
  
- The GUI implements means for the user to use the API and display the results of the algorithm.
- It is implemented via the wxWidgets API
+ The GUI implements means for the user to use the API and display the results of the algorithm. It also manages the aliases of the players, associating them with the ID of their Glicko-counterpart. 
+ Besides that it creates all results (using the Glicko-Result class) and saves them together with the date they were entered to have occured.  
+The Glicko-2 API just applies the algorithm to existing players with whatever results are passed to it. So the rating periods are implemented here as well to bundle results and give them to the algorithm.
+ 
  To be continued...
  
  
@@ -67,5 +69,3 @@ This is the main class containing the actual algorithm and using the other class
  These APIs are statically linked, only the Glicko-2 API is linked dynamically (again, only speaking for the supplied project-file).
 
 ### Known issue(s)
-
-- A player's rating (deviation) will decay from the first rating period on, instead of decay being possible only for periods after a result with that player has been.
