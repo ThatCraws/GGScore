@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GUI\AddResultDialog.cpp" />
     <ClCompile Include="GUI\AssignPlayerDialog.cpp" />
     <ClCompile Include="GUI\GetRequester.cpp" />
     <ClCompile Include="GUI\MainApp.cpp" />
@@ -21,6 +22,7 @@
     <ClCompile Include="GUI\WinSetAbt.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="GUI\AddResultDialog.h" />
     <ClInclude Include="GUI\AssignPlayerDialog.h" />
     <ClInclude Include="GUI\GetRequester.h" />
     <ClInclude Include="GUI\GlobalVars.h" />

@@ -6,7 +6,7 @@
 #include "WinMatchRep.h"
 #include "GlobalVars.h"
 
-#include <wx/calctrl.h>
+#include "AddResultDialog.h"
 
 #include <cctype>
 #include <locale>
@@ -90,92 +90,14 @@ WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id)
 
 void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 	// ------------ Creating Dialog ------------ 
-	wxDialog* addResDialog = new wxDialog(this, wxID_ANY, wxString("Manual Match Report"), wxDefaultPosition, wxDefaultSize, wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER);
+	AddResultDialog* addResDialog = new AddResultDialog(this, wxID_ANY, wxString("Manual Match Report"), mainAliases);
 
-	// ------------ Main Sizer ------------ 
-	wxBoxSizer* resSizer = new wxBoxSizer(wxVERTICAL);
-
-	// -==========- Player and Winner selection -==========-
-	wxBoxSizer* playerSelSizer = new wxBoxSizer(wxHORIZONTAL);
-
-	// ------------ Player 1 Selection ------------ 
 	
-	wxBoxSizer* player1Sizer = new wxBoxSizer(wxVERTICAL);
-	wxComboBox* player1 = new wxComboBox(addResDialog, wxID_ANY, wxString("Player 1"), wxDefaultPosition, wxSize(100, -1), mainAliases);
-	wxRadioButton* p1Won = new wxRadioButton(addResDialog, wxID_ANY, wxString("Won"), wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
-
-	player1Sizer->Add(player1, wxEXPAND);
-	player1Sizer->Add(p1Won);
-
-	// ------------ Player 2 Selection ------------ 
-	wxBoxSizer* player2Sizer = new wxBoxSizer(wxVERTICAL);
-
-	wxComboBox* player2 = new wxComboBox(addResDialog, wxID_ANY, wxString("Player 2"), wxDefaultPosition, wxSize(100, -1), mainAliases);
-	wxRadioButton* p2Won = new wxRadioButton(addResDialog, wxID_ANY, wxString("Won"));
-
-	player2Sizer->Add(player2, wxEXPAND | wxALIGN_CENTRE_VERTICAL);
-	player2Sizer->Add(p2Won);
-
-	playerSelSizer->Add(player1Sizer);
-	playerSelSizer->Add(player2Sizer);
-
-	resSizer->Add(playerSelSizer, 0, wxCENTER);
-
-	// -=========== Match settings ===========-
-	wxBoxSizer* matchSetSizer = new wxBoxSizer(wxHORIZONTAL);
-	// ------------ Forfeit checkbox ------------
-	wxCheckBox* forfeit = new wxCheckBox(addResDialog, wxID_ANY, wxString("Win/loss by Forfeit"), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
-	forfeit->SetValue(false);
-	matchSetSizer->Add(forfeit);
-
-	// ------------ Tie checkbox ------------
-	wxCheckBox* tieBox = new wxCheckBox(addResDialog, wxID_ANY, wxString("Tie"), wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT);
-	tieBox->SetValue(false);
-	matchSetSizer->Add(tieBox);
-
-	resSizer->AddSpacer(5);
-	resSizer->Add(matchSetSizer, 0, wxALIGN_CENTER);
-
-	// ------------ Date Picker ------------ 
-
-	wxCalendarCtrl* datePick = new wxCalendarCtrl(addResDialog, wxID_ANY);
-
-	resSizer->Add(datePick, 1, wxEXPAND);
-
-	// ------------ OK/Cancel Buttons ------------ 
-	wxBoxSizer* naviSizer = new wxBoxSizer(wxHORIZONTAL);
-
-	wxButton* okBtn = new wxButton(addResDialog, wxID_OK, "OK");
-	okBtn->SetDefault();
-	wxButton* cancBtn = new wxButton(addResDialog, wxID_CANCEL, "Cancel");
-
-	naviSizer->Add(okBtn);
-	naviSizer->Add(cancBtn);
-
-	resSizer->Add(naviSizer, 0, wxCENTER);
-
-	addResDialog->SetSizerAndFit(resSizer);
-	
-
-	/*
-		addRes -> resSizer	-> playerSelSizer	-> player1Sizer	-> player1
-																-> p1Won
-												-> player2Sizer	-> player2
-																-> p2Won
-							-> datePicker
-							-> naviSizer		-> okBtn
-												-> cancBtn
-	*/
-
 	switch (addResDialog->ShowModal())
 	{
 	case wxID_OK:
-		if (player1->GetValue().IsSameAs(player2->GetValue())) {
-			wxMessageBox(wxString("The entered player were the same!"));
-			return;
-		}
-		else if (forfeit->GetValue() && tieBox->GetValue()) {
-			wxMessageBox(wxString("The result can not be a forfeit AND a tie!"));
+		if (addResDialog->getPlayer1Alias().IsSameAs(addResDialog->getPlayer2Alias())) {
+			wxMessageBox(wxString("The entered players were the same!"));
 			return;
 		}
 		break;
@@ -190,11 +112,11 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 	std::tuple<std::string, std::string, wxDateTime, bool, bool>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool>();
 	
 	// Winner is first in vector
-	if (p1Won->GetValue()) {
-		*data = std::make_tuple(player1->GetValue().ToStdString(), player2->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue(), tieBox->GetValue());
+	if (addResDialog->getP1Won()) {
+		*data = std::make_tuple(addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie());
 	}
 	else {
-		*data = std::make_tuple(player2->GetValue().ToStdString(), player1->GetValue().ToStdString(), datePick->GetDate(), forfeit->GetValue(), tieBox->GetValue());
+		*data = std::make_tuple(addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie());
 	}
 
 	addResDialog->Destroy();
@@ -310,10 +232,6 @@ void WinMatchRep::sortResultTable() {
 }
 
 void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit, bool tie, std::string desc) {
-	if (forfeit && tie) {
-		wxMessageBox(wxString("A forfeit can not be a tie as well!"));
-		return;
-	}
 
 	matchTable->InsertItem(listViewItemID, wxString(date.Format(defaultFormatString)));
 	matchTable->SetItem(listViewItemID, 1, wxString(winnerAlias));
