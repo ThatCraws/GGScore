@@ -55,7 +55,7 @@ bool comparePeriods(const std::pair<wxDateTime, wxDateTime>& periodOne, const st
 	return (periodOne.first.IsEarlierThan(periodTwo.first));
 }
 
-// to sort results by date (MainWin-scope to be able to access results-struct)
+// to sort results by date
 bool compareResultDates(const MainWin::Result& resultOne, const MainWin::Result& resultTwo) {
 	return resultOne.date.IsEarlierThan(resultTwo.date);
 }
