@@ -87,7 +87,7 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 	constGridSizer->Add(tauTxt);
 	constGridSizer->Add(tauVal);
 
-	constSizerBox->Add(constGridSizer, 0, wxEXPAND);
+	constSizerBox->Add(constGridSizer, 1, wxEXPAND);
 	calcSizer->Add(constSizerBox, 0, wxEXPAND);
 
 	// -=========== About ==========-
