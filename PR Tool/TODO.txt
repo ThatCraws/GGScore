@@ -4,4 +4,6 @@ TODO
 
 - Let Users put an optional description for manually added results.
 
-- Give "Include forfeits in ranking"-option in "Settings/About"-tab the right category (it's not part of the challonge-bracket import anymore)
+- Let "Finalize ratings..." only remove results that are within rating periods
+
+- Show statistics in "Player Edit"

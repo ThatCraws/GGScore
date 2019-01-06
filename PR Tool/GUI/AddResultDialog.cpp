@@ -127,10 +127,22 @@ void AddResultDialog::OnForfeitCheck(wxCommandEvent& event) {
 	if (forfeit->GetValue()) {
 		tieBox->SetValue(false);
 	}
+	if (event.IsChecked()) {
+		p1Won->Enable();
+		p2Won->Enable();
+	}
 }
 
 void AddResultDialog::OnTieCheck(wxCommandEvent& event) {
 	if (tieBox->GetValue()) {
 		forfeit->SetValue(false);
+	}
+	if (event.IsChecked()) {
+		p1Won->Disable();
+		p2Won->Disable();
+	}
+	else {
+		p1Won->Enable();
+		p2Won->Enable();
 	}
 }
