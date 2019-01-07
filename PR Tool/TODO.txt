@@ -2,8 +2,6 @@ TODO
 								
 - Use const qualifier where possible
 
-- Let Users put an optional description for manually added results.
-
-- Let "Finalize ratings..." only remove results that are within rating periods
+- Use wxUnused where possible (mainly the event-handling methods)
 
 - Show statistics in "Player Edit"

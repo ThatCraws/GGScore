@@ -60,6 +60,16 @@ AddResultDialog::AddResultDialog(wxWindow* parent, wxWindowID id, const wxString
 
 	resSizer->Add(datePick, 1, wxEXPAND);
 
+	// ------------ Description ------------ 
+
+	descEdit = new wxTextCtrl(this, wxID_ANY, wxString("Description (optional)"));
+	descEdit->SetForegroundColour(wxColour(96, 96, 96));
+	//descEdit->SetDefaultStyle(wxTextAttr(*wxRED));
+	//descEdit->AppendText(wxString("Description (optional)"));
+
+
+	resSizer->Add(descEdit, 0, wxEXPAND);
+
 	// ------------ OK/Cancel Buttons ------------ 
 	wxBoxSizer* naviSizer = new wxBoxSizer(wxHORIZONTAL);
 
@@ -87,12 +97,17 @@ AddResultDialog::AddResultDialog(wxWindow* parent, wxWindowID id, const wxString
 
 	Bind(wxEVT_CHECKBOX, &AddResultDialog::OnForfeitCheck, this, forfeit->GetId());
 	Bind(wxEVT_CHECKBOX, &AddResultDialog::OnTieCheck, this, tieBox->GetId());
+	// Description field
+	descEdit->Bind(wxEVT_SET_FOCUS, &AddResultDialog::OnDescEditFocus, this);
+	descEdit->Bind(wxEVT_KILL_FOCUS, &AddResultDialog::OnDescEditUnfocus, this);
 }
 
 AddResultDialog::~AddResultDialog()
 {
 	Unbind(wxEVT_CHECKBOX, &AddResultDialog::OnForfeitCheck, this, forfeit->GetId());
 	Unbind(wxEVT_CHECKBOX, &AddResultDialog::OnTieCheck, this, tieBox->GetId());
+	descEdit->Unbind(wxEVT_SET_FOCUS, &AddResultDialog::OnDescEditFocus, this);
+	descEdit->Unbind(wxEVT_KILL_FOCUS, &AddResultDialog::OnDescEditUnfocus, this);
 }
 
 wxString AddResultDialog::getPlayer1Alias() {
@@ -123,6 +138,15 @@ wxDateTime AddResultDialog::getDate() {
 	return datePick->GetDate();
 }
 
+wxString AddResultDialog::getDesc() {
+	if (descEdit->GetForegroundColour() == wxColour(96, 96, 96)) {
+		return wxEmptyString;
+	}
+	else {
+		return descEdit->GetValue();
+	}
+}
+
 void AddResultDialog::OnForfeitCheck(wxCommandEvent& event) {
 	if (forfeit->GetValue()) {
 		tieBox->SetValue(false);
@@ -145,4 +169,21 @@ void AddResultDialog::OnTieCheck(wxCommandEvent& event) {
 		p1Won->Enable();
 		p2Won->Enable();
 	}
+}
+
+void AddResultDialog::OnDescEditFocus(wxFocusEvent& event) {
+	// checking for grey text-colour instead of "Description (optional)", so you can actually use "Description (optional)" as a description
+	if (descEdit->GetForegroundColour() == wxColour(96, 96, 96)) {
+		descEdit->Clear();
+		descEdit->SetForegroundColour(*wxBLACK);
+	}
+	event.Skip();
+}
+
+void AddResultDialog::OnDescEditUnfocus(wxFocusEvent& event) {
+	if (descEdit->GetValue() == wxEmptyString) {
+		descEdit->SetForegroundColour(wxColour(96, 96, 96));
+		descEdit->SetValue("Description (optional)");
+	}
+	event.Skip();
 }

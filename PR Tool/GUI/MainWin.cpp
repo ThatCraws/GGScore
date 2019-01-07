@@ -1092,8 +1092,8 @@ void MainWin::OnRatPerFinBtn(wxCommandEvent& event) {
 
 // Match report tab
 void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
-	// resultTuple: 0: winner, 1: loser, 2: date, 3: forfeit, 4: tie
-	std::tuple<std::string, std::string, wxDateTime, bool, bool>* resultTuple = (std::tuple<std::string, std::string, wxDateTime, bool, bool>*)event.GetClientData();
+	// resultTuple: 0: winner, 1: loser, 2: date, 3: forfeit, 4: tie, 5: Description
+	std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>* resultTuple = (std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>*)event.GetClientData();
 	if (resultTuple == nullptr) {
 		wxMessageBox(wxString("Result could not be inserted."), wxString("Invalid result"));
 		delete resultTuple;
@@ -1143,10 +1143,10 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	toAdd.result = resultToAdd;
 	toAdd.date = std::get<2>(*resultTuple);
 	toAdd.forfeit = std::get<3>(*resultTuple);
-	toAdd.desc = "";
+	toAdd.desc = std::get<5>(*resultTuple);
 
 	results.insert(toAdd);
-	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple), toAdd.forfeit, std::get<4>(*resultTuple));
+	matchWindow->addResult(getMainAlias(winID), getMainAlias(loseID), std::get<2>(*resultTuple), toAdd.forfeit, std::get<4>(*resultTuple), toAdd.desc);
 	matchWindow->sortResultTable();
 
 	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {

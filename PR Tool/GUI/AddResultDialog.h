@@ -16,6 +16,7 @@ public:
 	bool isForfeit();
 	bool isTie();
 	wxDateTime getDate();
+	wxString getDesc();
 private:
 	wxComboBox* player1;
 	wxRadioButton* p1Won;
@@ -24,9 +25,14 @@ private:
 	wxCheckBox* forfeit;
 	wxCheckBox* tieBox;
 	wxCalendarCtrl* datePick;
+	wxTextCtrl* descEdit;
 
 	void OnForfeitCheck(wxCommandEvent& event);
 	void OnTieCheck(wxCommandEvent& event);
+
+	// For the description field
+	void OnDescEditFocus(wxFocusEvent& event);
+	void OnDescEditUnfocus(wxFocusEvent& event);
 };
 
 

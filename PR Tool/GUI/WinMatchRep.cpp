@@ -109,14 +109,14 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 
 	// String alias for both players and the winning party
 
-	std::tuple<std::string, std::string, wxDateTime, bool, bool>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool>();
+	std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>();
 	
 	// Winner is first in vector
 	if (addResDialog->getP1Won()) {
-		*data = std::make_tuple(addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie());
+		*data = std::make_tuple(addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc());
 	}
 	else {
-		*data = std::make_tuple(addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie());
+		*data = std::make_tuple(addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc());
 	}
 
 	addResDialog->Destroy();
