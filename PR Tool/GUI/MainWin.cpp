@@ -518,8 +518,11 @@ void MainWin::removePlayer(unsigned int id) {
 					currResult++;
 				}
 			}
-			// remove from rating table window
-			periodWindow->removePlayer(id);
+
+			if (currPlayer->visible) {
+				// remove from rating table window (if visible)
+				periodWindow->removePlayer(id);
+			}
 			// remove from playerBase
 			playerBase.erase(currPlayer);
 			// remove from match report window's report-dialog
@@ -1625,8 +1628,10 @@ void MainWin::OnPlayerEditAliasMainBtn(wxCommandEvent& event) {
 						// update match report tab
 						matchWindow->updatePlayerDisplayAlias(oldMainAlias, *toMakeMain);
 						matchWindow->setMainAliases(retrieveMainAliases()); 
-						// update rating period tab
-						periodWindow->updatePlayerDisplayAlias(id, oldMainAlias, currPlayer->aliases[0]);
+						if (currPlayer->visible) {
+							// update rating period tab (if visible)
+							periodWindow->updatePlayerDisplayAlias(id, oldMainAlias, currPlayer->aliases[0]);
+						}
 						// update player edit tab
 						playerEditWindow->setMainAliases(retrieveMainAliases(), currPlayer->aliases[0]);
 						playerEditWindow->setPlayersAliases(currPlayer->aliases);

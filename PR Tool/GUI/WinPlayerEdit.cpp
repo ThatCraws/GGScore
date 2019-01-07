@@ -38,7 +38,7 @@ WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString c
 	aliasModSizer->Add(hidePlayerCheck, 0, wxEXPAND); // Not exactly alias modifying, but better here
 	// list of aliases of selected player
 	aliasListView = new wxListView(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_NO_HEADER | wxLC_SINGLE_SEL);
-	aliasListView->InsertColumn(0, wxEmptyString);
+	aliasListView->InsertColumn(0, wxEmptyString, 0, winMinWidth/3*2);
 
 	aliasManSizer->Add(aliasModSizer);
 	aliasManSizer->Add(aliasListView, 1, wxEXPAND);
