@@ -346,7 +346,7 @@ void WinRatPer::updatePlayer(unsigned int id, double rating, unsigned int wins, 
 
 	float winPercent = 0;
 	if (wins + losses != 0) {
-		winPercent = (float)wins / (((float)wins + (float)losses + (float)ties) / 100);
+		winPercent = ((float)wins + ((float)ties /2)) / (((float)wins + (float)losses + (float)ties) / 100);
 	}
 
 	ratingTable->SetItem(item, 1, wxString(std::to_string(rating).substr(0, std::to_string(rating).find_last_of('.'))));
