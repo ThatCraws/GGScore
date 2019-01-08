@@ -1178,7 +1178,7 @@ void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
 				// compare other alias
 								
 				if (getMainAlias(currResult->result.getP2Id()) == std::get<1>(*data)) {
-					// the result-flag of the result to remove and the current one has to be the same
+					// the forfeit-flag of the result to remove and the current one has to be the same
 					if (std::get<3>(*data) == currResult->forfeit) {
 
 						// if the result to remove is a tie the winnerId should be -1 (or we'd remove the wrong result)
