@@ -5,6 +5,3 @@ TODO
 - Use wxUnused where possible (mainly the event-handling methods)
 
 - Show statistics in "Player Edit"
-
-- Check if two results with same player 1, player 2, winner and date, but different description are always properly removed...
-	-> else check for description as well when removing results... probably make a remove-/addResult-method as well...

@@ -3,7 +3,8 @@ Application to create power rankings via the Glicko-2 algorithm.
 
 The basic idea of this application is to create Power Rankings.
 Originally for competitive Super Smash Bros. for the Nintendo Gamecube, but you can technically create PRs for every competitive discipline.
-The ratings are created via the Glicko-2 algorithm.
+The ratings are created via the Glicko-2 algorithm.  
+A ready-to-go build can be found in [this dropbox][Download link for build].
 
 ## Basic usage/features
 
@@ -45,6 +46,12 @@ The Glicko-2 API just applies the algorithm to existing players with whatever re
  
  To be continued...
  
+ ### Date format
+ 
+ If you build the application as is from this repo the date format will be dd.mm.yyyy, which can be changed in the GlobalVars.h file. 
+ The "defaultFormatString" can be changed using the specifiers shown [here](http://www.cplusplus.com/reference/ctime/strftime/). 
+ The standard US date format will be "%m/%d/%Y" and a build can be found in the [dropbox][Download link for build].  
+ Changing the date format can be done without worrying about the save-files (mainly results.json, being the only one saving dates). The dates are always saved in ISO 8601 format and only displayed as described by the defaultFormatString-value.
  
  ## How to build
  
@@ -69,3 +76,6 @@ The Glicko-2 API just applies the algorithm to existing players with whatever re
  These APIs are statically linked, only the Glicko-2 API is linked dynamically (again, only speaking for the supplied project-file).
 
 ### Known issue(s)
+
+
+[Download link for build]: https://www.dropbox.com/sh/0f5kgb1ol10l076/AADQnKghLpe9jwq4Mr67W5Cwa?dl=0
