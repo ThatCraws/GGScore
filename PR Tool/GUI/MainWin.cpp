@@ -1096,7 +1096,7 @@ void MainWin::OnRatPerFinBtn(wxCommandEvent& event) {
 // Match report tab
 void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 	// resultTuple: 0: winner, 1: loser, 2: date, 3: forfeit, 4: tie, 5: Description
-	std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>* resultTuple = (std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>*)event.GetClientData();
+	std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>* resultTuple = (std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>*)event.GetClientData();
 	if (resultTuple == nullptr) {
 		wxMessageBox(wxString("Result could not be inserted."), wxString("Invalid result"));
 		delete resultTuple;
@@ -1165,8 +1165,8 @@ void MainWin::OnMatRepAddBtn(wxCommandEvent& event) {
 }
 
 void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
-	// event data is a tuple consisting of <winnerAlias, loserAlias, matchDate, tie>
-	std::tuple <std::string, std::string, wxDateTime, bool>* data = (std::tuple <std::string, std::string, wxDateTime, bool>*)event.GetClientData();
+	// data : 0: winner, 1: loser, 2: date, 3: forfeit, 4: tie, 5: Description
+	std::tuple <std::string, std::string, wxDateTime, bool, bool, std::string>* data = (std::tuple <std::string, std::string, wxDateTime, bool, bool, std::string>*)event.GetClientData();
 
 	// Go through results until result to be removed is found
 	for(auto currResult = results.begin(); currResult != results.end(); currResult++) {
@@ -1178,25 +1178,33 @@ void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
 				// compare other alias
 								
 				if (getMainAlias(currResult->result.getP2Id()) == std::get<1>(*data)) {
-					// if the result to remove is a tie the winnerId should be -1 (or we'd remove the wrong result)
-					if ((std::get<3>(*data) && currResult->result.getWinnerId() == -1)
-						|| (!std::get<3>(*data) && currResult->result.getWinnerId() != -1)) {
-						results.erase(currResult);
-						matchWindow->removeResult();
+					// the result-flag of the result to remove and the current one has to be the same
+					if (std::get<3>(*data) == currResult->forfeit) {
 
+						// if the result to remove is a tie the winnerId should be -1 (or we'd remove the wrong result)
+						if ((std::get<4>(*data) && currResult->result.getWinnerId() == -1)
+							|| (!std::get<4>(*data) && currResult->result.getWinnerId() != -1)) {
+							// lastly, the description (or lack thereof) has to be the same for both
+							if (std::get<5>(*data) == currResult->desc) {
+								results.erase(currResult);
+								matchWindow->removeResult();
 
-						// If match was inside of an existing rating period recalculate from that period on
-						for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-							if ((std::get<2>(*data).IsLaterThan(currPeriod->first) || std::get<2>(*data).IsEqualTo(currPeriod->first))
-								&& (std::get<2>(*data).IsEarlierThan(currPeriod->second) || std::get<2>(*data).IsEqualTo(currPeriod->second))) {
-								// TODO use again, once reimplemented
-								//recalculateFromPeriod(*currPeriod);
+								// TODO use again, once recalculateFromPeriod is reimplemented (or just leave as is)...
+								/*
+								// If match was inside of an existing rating period recalculate from that period on
+								for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+									if ((std::get<2>(*data).IsLaterThan(currPeriod->first) || std::get<2>(*data).IsEqualTo(currPeriod->first))
+										&& (std::get<2>(*data).IsEarlierThan(currPeriod->second) || std::get<2>(*data).IsEqualTo(currPeriod->second))) {
+										//recalculateFromPeriod(*currPeriod);
+									}
+								}
+								*/
 								recalculateAllPeriods();
+
+								delete data;
+								return;
 							}
 						}
-
-						delete data;
-						return;
 					}
 				}
 			}

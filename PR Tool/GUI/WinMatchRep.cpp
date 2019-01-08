@@ -107,16 +107,15 @@ void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
 		return;
 	} 
 
-	// String alias for both players and the winning party
-
-	std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, wxString>();
+	// winner, loser, date, forfeit, tie, description
+	std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>();
 	
 	// Winner is first in vector
 	if (addResDialog->getP1Won()) {
-		*data = std::make_tuple(addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc());
+		*data = std::make_tuple(addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc().ToStdString());
 	}
 	else {
-		*data = std::make_tuple(addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc());
+		*data = std::make_tuple(addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc().ToStdString());
 	}
 
 	addResDialog->Destroy();
@@ -137,8 +136,11 @@ void WinMatchRep::OnBtnRem(wxCommandEvent& event) {
 	wxDateTime matchDate;
 	matchDate.ParseFormat(matchTable->GetItemText(item, 0), defaultFormatString);
 	bool tie = matchTable->GetItemBackgroundColour(item) == wxColour(144, 144, 144);
+	bool forfeit = matchTable->GetItemBackgroundColour(item) == wxColour(208, 208, 208);
+	std::string description = matchTable->GetItemText(item, 3).ToStdString();
 
-	std::tuple<std::string, std::string, wxDateTime, bool>* data = new std::tuple<std::string, std::string, wxDateTime, bool>(winnerAlias, loserAlias, matchDate, tie);
+	// winner, loser, date, forfeit, tie, description
+	std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>(winnerAlias, loserAlias, matchDate, forfeit, tie, description);
 
 	event.SetClientData(data);
 	event.Skip();
