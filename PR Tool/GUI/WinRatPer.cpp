@@ -345,7 +345,7 @@ void WinRatPer::updatePlayer(unsigned int id, double rating, unsigned int wins, 
 	}
 
 	float winPercent = 0;
-	if (wins + losses != 0) {
+	if (wins + losses + ties != 0) {
 		winPercent = ((float)wins + ((float)ties /2)) / (((float)wins + (float)losses + (float)ties) / 100);
 	}
 
