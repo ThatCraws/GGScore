@@ -1667,6 +1667,7 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 			if (currPlayer->visible) {
 				periodWindow->addPlayer(currPlayer->id, currPlayer->aliases[0]);
 				updatePlayerEntry(*currPlayer);
+				periodWindow->sortMatchTable();
 			}
 			else {
 				periodWindow->removePlayer(currPlayer->id);
