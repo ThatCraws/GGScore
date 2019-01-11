@@ -372,52 +372,7 @@ void MainWin::recalculateAllPeriods() {
 	// Update rating period-tab rating table 
 	// Count wins and losses per player
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		// only update when player is visible
-		if (currPlayer->visible) {
-			unsigned int wins = 0;
-			unsigned int losses = 0;
-			unsigned int ties = 0;
-
-
-			for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-				std::vector<Glicko2::Result> relevantResults;
-
-				// fill relevantResults vector with Glicko-Results from period
-				std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
-				for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
-					relevantResults.push_back(currStructResult->result);
-				}
-
-				for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-					bool isP1 = currPlayer->id == currResult->getP1Id();
-					bool isP2 = currPlayer->id == currResult->getP2Id();
-
-					if (isP1) {
-						if (currResult->getP1Id() == currResult->getWinnerId()) {
-							wins++;
-						}
-						else if (currResult->getP2Id() == currResult->getWinnerId()) {
-							losses++;
-						}
-						else {
-							ties++;
-						}
-					}
-					else if (isP2) {
-						if (currResult->getP2Id() == currResult->getWinnerId()) {
-							wins++;
-						}
-						else if (currResult->getP1Id() == currResult->getWinnerId()) {
-							losses++;
-						}
-						else {
-							ties++;
-						}
-					}
-				}
-			}
-			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses, currPlayer->ties + ties);
-		}
+		updatePlayerEntry(*currPlayer);
 	}
 	periodWindow->sortMatchTable();
 }
@@ -537,6 +492,53 @@ void MainWin::removePlayer(unsigned int id) {
 	}
 }
 
+void MainWin::updatePlayerEntry(Player player) {
+	if (player.visible) {
+		unsigned int wins = 0;
+		unsigned int losses = 0;
+		unsigned int ties = 0;
+
+
+		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+			std::vector<Glicko2::Result> relevantResults;
+
+			// fill relevantResults vector with Glicko-Results from period
+			std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
+			for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
+				relevantResults.push_back(currStructResult->result);
+			}
+
+			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
+				bool isP1 = player.id == currResult->getP1Id();
+				bool isP2 = player.id == currResult->getP2Id();
+
+				if (isP1) {
+					if (currResult->getP1Id() == currResult->getWinnerId()) {
+						wins++;
+					}
+					else if (currResult->getP2Id() == currResult->getWinnerId()) {
+						losses++;
+					}
+					else {
+						ties++;
+					}
+				}
+				else if (isP2) {
+					if (currResult->getP2Id() == currResult->getWinnerId()) {
+						wins++;
+					}
+					else if (currResult->getP1Id() == currResult->getWinnerId()) {
+						losses++;
+					}
+					else {
+						ties++;
+					}
+				}
+			}
+		}
+		periodWindow->updatePlayer(player.id, player.ratings[player.ratings.size() - 1].rating, player.wins + wins, player.losses + losses, player.ties + ties);
+	}
+}
 
 const std::pair<wxDateTime, wxDateTime>* MainWin::findPeriod(wxDateTime& start, wxDateTime& end) {
 	const std::pair<wxDateTime, wxDateTime>* toRet = nullptr;
@@ -1663,50 +1665,8 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 		if (currPlayer->id == id) {
 			currPlayer->visible = !(playerEditWindow->getHidden());
 			if (currPlayer->visible) {
-
-				// Count wins and losses
-				unsigned int wins = 0;
-				unsigned int losses = 0;
-				unsigned int ties = 0;
-				for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-
-					std::vector<Glicko2::Result> relevantResults;
-
-					// fill relevantResults vector with Glicko-Results from period
-					std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
-					for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
-						relevantResults.push_back(currStructResult->result);
-					}
-					for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-						bool isP1 = currResult->getP1Id() == id;
-						bool isP2 = currResult->getP1Id() == id;
-
-						if (isP1) {
-							if (currResult->getP1Id() == currResult->getWinnerId()) {
-								wins++;
-							}
-							else if (currResult->getP2Id() == currResult->getWinnerId()) {
-								losses++;
-							}
-							else {
-								ties++;
-							}
-						}
-						if(isP2) {
-							if (currResult->getP2Id() == currResult->getWinnerId()) {
-								wins++;
-							}
-							else if (currResult->getP1Id() == currResult->getWinnerId()) {
-								losses++;
-							}
-							else {
-								ties++;
-							}
-						}
-					}
-				}
 				periodWindow->addPlayer(currPlayer->id, currPlayer->aliases[0]);
-				periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, currPlayer->wins + wins, currPlayer->losses + losses, currPlayer->ties + ties);
+				updatePlayerEntry(*currPlayer);
 			}
 			else {
 				periodWindow->removePlayer(currPlayer->id);
