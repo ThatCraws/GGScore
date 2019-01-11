@@ -89,7 +89,7 @@ private:
 		player	the player-struct whose entry to update
 
 	*/
-	void updatePlayerEntry(Player player);
+	void updatePlayerEntry(Player& player);
 
 	/* ------------ findPeriod ------------
 	Looks for a given period of time in the rating periods-vector and returns it

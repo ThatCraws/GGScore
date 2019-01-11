@@ -492,7 +492,7 @@ void MainWin::removePlayer(unsigned int id) {
 	}
 }
 
-void MainWin::updatePlayerEntry(Player player) {
+void MainWin::updatePlayerEntry(Player& player) {
 	if (player.visible) {
 		unsigned int wins = 0;
 		unsigned int losses = 0;
