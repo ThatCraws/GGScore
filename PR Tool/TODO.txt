@@ -3,3 +3,38 @@ TODO
 - Use const qualifier where possible
 
 - Use wxUnused where possible (mainly the event-handling methods)
+
+- Smash.gg support
+  - user enters BracketID = number after last '/' when viewing bracket. For https://smash.gg/tournament/genesis-3/events/melee-singles/brackets/3861/15834 it will be 15834
+  - use get-requester on: https://api.smash.gg/phase_group/{BracketID}?expand[]=sets&expand[]=entrants
+  - parse response to json object
+  - iterate through json[entities][player]
+    - assign "gamerTag" to "entrantID" per player 
+  - iterate through json[entities][sets]
+    - associate "entrant1id" and "entrant2id" with the players (aliases)
+    - read "entrant1score" and "entrant2score" to create result
+  - Done(?)
+    -> still need tournament/bracket name
+      - from get-requesting 
+          phase_group/{BracketID} get phaseId -> 
+          phase/{phaseID} get eventId -> 
+          event/{eventId} get slug, for example: 	"tournament/genesis-3/event/melee-singles" get "genesis-3"-part ->
+          tournament/genesis-3 get "name"
+          
+    -> could make user insert overview site:
+    - user enters https://smash.gg/tournament/genesis-3/events/melee-singles/overview
+    - retrieve "name" by get-requesting https://api.smash.gg/tournament/genesis-3
+    - get-requester to: https://api.smash.gg/tournament/genesis-3/event/melee-singles?expand[]=phase
+    - iterate json[entities][phase]
+      - retrieve "name"-field of each phase (and assign to phase id (field 'id' in json))
+      - display each phase name and let user choose which of them he wants to import (importing the pools-phase means to import every pool)
+      - iterate through chosen phases
+        - get-request current phase https://api.smash.gg/phase/{id}?expand[]=groups ({id} = the associated phase ID)
+        - iterate json[entities][groups] (all brackets of current phase like Pools A1, A2,...)
+          - get 'id'-field and get-request the bracket like: https://api.smash.gg/phase_group/{id}?expand[]=sets&expand[]=entrants
+          - iterate json[entities][player]
+            - associate "gamerTag" with "entrantID" per player
+          - iterate through json[entities][sets]
+            - associate "entrant1id" and "entrant2id" with the players (aliases/gamerTag) (if one of them is null, ignore because it's a bye. DQs will have both players' IDs anyway)
+            - read "entrant1score" and "entrant2score" to create result
+  - Profit?
