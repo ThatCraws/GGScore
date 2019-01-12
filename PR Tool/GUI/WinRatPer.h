@@ -11,12 +11,12 @@ public:
 	void addRatingPeriod(const wxDateTime& start, const wxDateTime& end);
 	void removeRatingPeriod(wxDateTime& start, wxDateTime& end);
 
-	void addPlayer(unsigned int id, std::string displayAlias); // rating, sets, wins, losses?? ID to set ItemData(won't be duplicate) not to mix up with setID tho
-	void updatePlayer(unsigned int id, double rating, unsigned int wins, unsigned int losses, unsigned int ties);
-	void updatePlayerDisplayAlias(unsigned int id, std::string oldAlias, std::string newAlias);
-	// This method is used to assign new IDs, when the world is recreated. In this process there might temporarily be duplicate IDs, so we use the shown alias to distinguish
-	void updatePlayerID(unsigned int oldId, std::string displayAlias, unsigned int newId); 
+	void addPlayer(unsigned int id, std::string displayAlias);
 	void removePlayer(unsigned int id);
+	void updatePlayer(unsigned int id, double rating, unsigned int wins, unsigned int losses, unsigned int ties);
+	// This method is used to assign new IDs, when the world is recreated. In this process there might temporarily be duplicate IDs, so we use the shown alias to distinguish
+	void updatePlayerID(unsigned int oldId, std::string displayAlias, unsigned int newId);
+	void updatePlayerDisplayAlias(unsigned int id, std::string oldAlias, std::string newAlias);
 
 	void sortMatchTable();
 private:

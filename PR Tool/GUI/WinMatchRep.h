@@ -14,11 +14,11 @@ public:
 	void removeResult();
 	void removeResult(std::string winnerAlias, std::string loserAlias, const wxDateTime& date);
 	void clearResultTable();
+	void sortResultTable();
 
 	void setMainAliases(std::vector<std::string> newList);
 	void updatePlayerDisplayAlias(std::string oldAlias, std::string newAlias);
 
-	void sortResultTable();
 private:
 	wxArrayString mainAliases;
 
@@ -33,6 +33,5 @@ private:
 	void OnBtnAdd(wxCommandEvent& event);
 	void OnBtnRem(wxCommandEvent& event);
 	void OnColumnClick(wxListEvent& event);
-	void OnDraw(wxPaintEvent& event);
 };
 #endif

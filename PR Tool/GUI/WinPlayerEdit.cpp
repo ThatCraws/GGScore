@@ -106,99 +106,6 @@ WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString c
 	SetSizerAndFit(mainSizer);
 }
 
-void WinPlayerEdit::OnPlayerChoice(wxCommandEvent& event) {
-
-	// Only skip to get the aliases to display if the current selection is valid and not a new player
-	if (aliasChoice->GetStringSelection().ToStdString() != "<New player>" && aliasChoice->GetStringSelection().ToStdString() != "") {
-		std::string* theData = new std::string(aliasChoice->GetStringSelection().ToStdString());
-
-		if (!hidePlayerCheck->IsEnabled()) {
-			hidePlayerCheck->Enable();
-		}
-
-		event.SetClientData(theData);
-		event.Skip();
-	}
-	else {
-		aliasListView->DeleteAllItems(); // New player is selected(or invalid selection), so don't display aliases 
-		if (hidePlayerCheck->IsEnabled()) {
-			hidePlayerCheck->Disable();
-		}
-		// set all stats to "-"
-		ratingVal->SetLabel(wxString("-"));
-		deviationVal->SetLabel(wxString("-"));
-		volatilityVal->SetLabel(wxString("-"));
-
-		setCountVal->SetLabel(wxString("-"));
-		winPercentVal->SetLabel(wxString("-"));
-	}
-}
-
-void WinPlayerEdit::OnAliasAddBtn(wxCommandEvent& event) {
-	wxTextEntryDialog* aliasInputDialog = new wxTextEntryDialog(this, wxString("Please enter new alias"), wxString("New alias"));
-
-	std::pair<std::string, std::string>* theAliases;
-
-	switch (aliasInputDialog->ShowModal()) {
-	case wxID_OK:
-		if (aliasInputDialog->GetValue() == wxEmptyString) {
-			wxMessageBox(wxString("No alias entered, player remains unchanged."), wxString("No valid input"));
-			return;
-		}
-		// We'll have to give the main alias of the user to add the alias to as well
-		theAliases = new std::pair<std::string, std::string>(aliasChoice->GetStringSelection().ToStdString(), aliasInputDialog->GetValue().ToStdString());
-		event.SetClientData(theAliases);
-		event.Skip();
-		break;
-	case wxID_CANCEL:
-		break;
-	}
-}
-
-void WinPlayerEdit::OnAliasRemBtn(wxCommandEvent& event) {
-	std::string* aliasToRem;
-	
-	if (aliasListView->GetFirstSelected() == -1) {
-		return;
-	}
-
-	aliasToRem = new std::string(aliasListView->GetItemText(aliasListView->GetFirstSelected()).ToStdString());
-
-	event.SetClientData(aliasToRem);
-	event.Skip();
-}
-
-void WinPlayerEdit::OnAliasMainBtn(wxCommandEvent& event) {
-	long item = aliasListView->GetFirstSelected();
-
-	if (item == -1) { return; }
-
-	std::string* theData = new std::string(aliasListView->GetItemText(item));
-
-	event.SetClientData(theData);
-	event.Skip();
-}
-
-void WinPlayerEdit::OnPlayerToggleVis(wxCommandEvent& event) {
-	std::string* theData = new std::string(aliasChoice->GetStringSelection().ToStdString());
-	event.SetClientData(theData);
-	event.Skip();
-}
-
-void WinPlayerEdit::OnPlayerRemBtn(wxCommandEvent& event) {
-	std::string* aliasToRem;
-
-	if (aliasChoice->GetStringSelection().IsSameAs(wxString("<New player>"))) {
-		return;
-	}
-
-	aliasToRem = new std::string(aliasChoice->GetStringSelection().ToStdString());
-
-	event.SetClientData(aliasToRem);
-	event.Skip();
-}
-
-
 std::string WinPlayerEdit::getSelectionAlias() {
 	if (aliasChoice->GetStringSelection().ToStdString() == "<New player>") {
 		return "";
@@ -281,4 +188,97 @@ void WinPlayerEdit::setStats(double rating, double deviation, double volatility,
 		winPercent = ((float)wins + ((float)ties / 2)) / (((float)wins + (float)losses + (float)ties) / 100);
 	}
 	winPercentVal->SetLabel(wxString(std::to_string((int)winPercent) + "%"));
+}
+
+
+void WinPlayerEdit::OnPlayerChoice(wxCommandEvent& event) {
+
+	// Only skip to get the aliases to display if the current selection is valid and not a new player
+	if (aliasChoice->GetStringSelection().ToStdString() != "<New player>" && aliasChoice->GetStringSelection().ToStdString() != "") {
+		std::string* theData = new std::string(aliasChoice->GetStringSelection().ToStdString());
+
+		if (!hidePlayerCheck->IsEnabled()) {
+			hidePlayerCheck->Enable();
+		}
+
+		event.SetClientData(theData);
+		event.Skip();
+	}
+	else {
+		aliasListView->DeleteAllItems(); // New player is selected(or invalid selection), so don't display aliases 
+		if (hidePlayerCheck->IsEnabled()) {
+			hidePlayerCheck->Disable();
+		}
+		// set all stats to "-"
+		ratingVal->SetLabel(wxString("-"));
+		deviationVal->SetLabel(wxString("-"));
+		volatilityVal->SetLabel(wxString("-"));
+
+		setCountVal->SetLabel(wxString("-"));
+		winPercentVal->SetLabel(wxString("-"));
+	}
+}
+
+void WinPlayerEdit::OnAliasAddBtn(wxCommandEvent& event) {
+	wxTextEntryDialog* aliasInputDialog = new wxTextEntryDialog(this, wxString("Please enter new alias"), wxString("New alias"));
+
+	std::pair<std::string, std::string>* theAliases;
+
+	switch (aliasInputDialog->ShowModal()) {
+	case wxID_OK:
+		if (aliasInputDialog->GetValue() == wxEmptyString) {
+			wxMessageBox(wxString("No alias entered, player remains unchanged."), wxString("No valid input"));
+			return;
+		}
+		// We'll have to give the main alias of the user to add the alias to as well
+		theAliases = new std::pair<std::string, std::string>(aliasChoice->GetStringSelection().ToStdString(), aliasInputDialog->GetValue().ToStdString());
+		event.SetClientData(theAliases);
+		event.Skip();
+		break;
+	case wxID_CANCEL:
+		break;
+	}
+}
+
+void WinPlayerEdit::OnAliasRemBtn(wxCommandEvent& event) {
+	std::string* aliasToRem;
+
+	if (aliasListView->GetFirstSelected() == -1) {
+		return;
+	}
+
+	aliasToRem = new std::string(aliasListView->GetItemText(aliasListView->GetFirstSelected()).ToStdString());
+
+	event.SetClientData(aliasToRem);
+	event.Skip();
+}
+
+void WinPlayerEdit::OnAliasMainBtn(wxCommandEvent& event) {
+	long item = aliasListView->GetFirstSelected();
+
+	if (item == -1) { return; }
+
+	std::string* theData = new std::string(aliasListView->GetItemText(item));
+
+	event.SetClientData(theData);
+	event.Skip();
+}
+
+void WinPlayerEdit::OnPlayerToggleVis(wxCommandEvent& event) {
+	std::string* theData = new std::string(aliasChoice->GetStringSelection().ToStdString());
+	event.SetClientData(theData);
+	event.Skip();
+}
+
+void WinPlayerEdit::OnPlayerRemBtn(wxCommandEvent& event) {
+	std::string* aliasToRem;
+
+	if (aliasChoice->GetStringSelection().IsSameAs(wxString("<New player>"))) {
+		return;
+	}
+
+	aliasToRem = new std::string(aliasChoice->GetStringSelection().ToStdString());
+
+	event.SetClientData(aliasToRem);
+	event.Skip();
 }

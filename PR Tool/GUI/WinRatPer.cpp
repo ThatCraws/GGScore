@@ -75,190 +75,6 @@ WinRatPer::WinRatPer(wxWindow* parent, wxWindowID winid)
 	SetSizer(mainSizer);
 }
 
-void WinRatPer::OnBtnAddPer(wxCommandEvent& event) {
-	// ------------ Creating Dialog ------------ 
-	wxDialog* addPerDialog = new wxDialog(this, wxID_ANY, "Add rating period", wxDefaultPosition, wxDefaultSize, wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER);
-
-	// ------------ Main Sizer ------------
-	wxBoxSizer* perSizer = new wxBoxSizer(wxVERTICAL);
-
-	// -==========- Period Selection -==========-
-	wxFlexGridSizer* dateSizer = new wxFlexGridSizer(2, wxSize(5, 15));
-	dateSizer->AddGrowableCol(0, 1);
-	dateSizer->AddGrowableCol(1, 1);
-	dateSizer->AddGrowableRow(1, 1);
-
-	wxStaticText* startText = new wxStaticText(addPerDialog, wxID_ANY, wxString("Start date:"));
-	wxCalendarCtrl* startDate = new wxCalendarCtrl(addPerDialog, wxID_ANY);
-	wxStaticText* endText = new wxStaticText(addPerDialog, wxID_ANY, wxString("End date:"));
-	wxCalendarCtrl* endDate = new wxCalendarCtrl(addPerDialog, wxID_ANY);
-
-	// add to period sizer
-	dateSizer->Add(startText);
-	dateSizer->Add(endText);
-	dateSizer->Add(startDate, 1, wxEXPAND);
-	dateSizer->Add(endDate, 1, wxEXPAND);
-
-	// add to main sizer
-	perSizer->Add(dateSizer, 1, wxEXPAND);
-
-	// -==========- confirm/cancel buttons -==========-
-	wxBoxSizer* btnSizer = new wxBoxSizer(wxHORIZONTAL);
-
-	wxButton* okBtn = new wxButton(addPerDialog, wxID_OK, wxString("OK"));
-	wxButton* cancBtn = new wxButton(addPerDialog, wxID_CANCEL, wxString("Cancel"));
-
-	// add to button sizer
-	btnSizer->Add(okBtn);
-	btnSizer->Add(cancBtn);
-	
-	okBtn->SetDefault();
-	// add to main sizer
-	perSizer->Add(btnSizer, 0, wxALIGN_CENTER);
-
-	addPerDialog->SetSizerAndFit(perSizer);
-
-
-	switch (addPerDialog->ShowModal()) {
-	case wxID_OK:
-		if (endDate->GetDate().IsEarlierThan(startDate->GetDate()) || startDate->GetDate().IsEqualTo(endDate->GetDate())) {
-			wxMessageBox(wxString("Selected end date was earlier or equal to start date."), wxString("Invalid date"), wxOK | wxICON_WARNING);
-		}
-		else {
-			std::pair<wxDateTime, wxDateTime>* periodTime = new std::pair<wxDateTime, wxDateTime>(startDate->GetDate(), endDate->GetDate()); // Dead when leaving scope??
-
-			event.SetClientData(periodTime);
-			event.Skip();
-		}
-		break;
-	case wxID_CANCEL:
-		break;
-	}
-
-	addPerDialog->Destroy();
-}
-
-void WinRatPer::OnBtnRemPer(wxCommandEvent& event) {
-	long id = periodTable->GetFirstSelected();
-
-	if (id == -1) {
-		return;
-	}
-
-	wxDateTime start;
-	wxDateTime end;
-
-	wxString::const_iterator end_iterator; // will be set to where the parsing stops, so should be at the end then
-
-	if (!start.ParseFormat(periodTable->GetItemText(id, 1), defaultFormatString, &end_iterator)) {
-		wxMessageBox(wxString("The string: " + periodTable->GetItemText(id, 1) + " could not be parsed to a date. Please report"), wxString("Unsuccessful parsing of date"));
-		return;
-	}
-
-	if (!end.ParseFormat(periodTable->GetItemText(id, 2), defaultFormatString, &end_iterator)) {
-		wxMessageBox(wxString("The string: " + periodTable->GetItemText(id, 2) + " could not be parsed to a date. Please report"), wxString("Unsuccessful parsing of date"));
-		return;
-	}
-
-	std::pair<wxDateTime, wxDateTime>* data = new std::pair<wxDateTime, wxDateTime>(start, end);
-	event.SetClientData(data);
-	event.Skip();
-}
-
-void WinRatPer::OnBtnFinalize(wxCommandEvent& event) {
-	wxMessageDialog* warnDialog = new wxMessageDialog(this, wxString(
-		"You are about to finalize the ratings. This will remove all existing results and rating periods and set the current "
-		"ratings as new starting value for every player. "
-		"The current ratings will NOT be affected, but you will not be able to change the currently existing results. \n"
-		"The main reason to do this is to clean up the table of reported results, when the rating periods are over."), wxString("About to remove results"), wxYES_NO | wxCANCEL | wxICON_INFORMATION);
-
-	switch (warnDialog->ShowModal()) {
-	case wxID_YES:
-		event.Skip();
-	case wxID_NO:
-	case wxID_CANCEL:
-		warnDialog->Destroy();
-	}
-}
-
-int wxCALLBACK sortMyPlayers(wxIntPtr item1, wxIntPtr item2, wxIntPtr sortData) {
-
-	std::tuple<wxListView*, int, bool>* realSortData = (std::tuple<wxListView*, int, bool>*) sortData;
-
-	wxListView* theTable = std::get<0>(*realSortData);
-	int sortColumn = std::get<1>(*realSortData);
-	bool descend = std::get<2>(*realSortData);
-
-	long item1ID = theTable->FindItem(-1, item1);
-	long item2ID = theTable->FindItem(-1, item2);
-
-	std::string item1String = theTable->GetItemText(item1ID, sortColumn).ToStdString();
-	std::string item2String = theTable->GetItemText(item2ID, sortColumn).ToStdString();
-
-	// if the column represents numbers try to compare those as ints
-	int item1Int;
-	int item2Int;
-	try {
-		item1Int = std::stoi(item1String);
-		item2Int = std::stoi(item2String);
-	}
-	catch (const std::invalid_argument) {
-		// if it doesn't work use the strings
-
-		// make it case-insensitive
-		std::locale loc;
-		for (auto currChar = item1String.begin(); currChar != item1String.end(); currChar++) {
-			*currChar = std::tolower(*currChar, loc);
-		}
-		for (auto currChar = item2String.begin(); currChar != item2String.end(); currChar++) {
-			*currChar = std::tolower(*currChar, loc);
-		}
-
-		// compare
-		if (descend) {
-			return item1String.compare(item2String);
-		}
-		else {
-			return item1String.compare(item2String) * (-1);
-		}
-	}
-
-	if (item1Int < item2Int) {
-		if (descend) {
-			return 1;
-		}
-		else {
-			return -1;
-		}
-	}
-	else if (item1Int > item2Int) {
-		if (descend) {
-			return -1;
-		}
-		else {
-			return 1;
-		}
-	}
-	else {
-		return 0;
-	}
-}
-
-void WinRatPer::OnColumnClick(wxListEvent& event) {
-	if (event.GetColumn() != -1) {
-		if (event.GetColumn() == ratingViewSortedColumn) {
-			ratingViewDescending = !ratingViewDescending;
-		}
-		else {
-			ratingViewSortedColumn = event.GetColumn();
-		}
-	}
-
-	std::tuple<wxListView*, int, bool>* sortData = new std::tuple<wxListView*, int, bool>(ratingTable, ratingViewSortedColumn, ratingViewDescending);
-	ratingTable->SortItems(&sortMyPlayers, (wxIntPtr)sortData);
-	delete sortData;
-}
-
 // helper function
 int wxCALLBACK sortMyItems(wxIntPtr item1, wxIntPtr item2, wxIntPtr WXUNUSED(sortData)) {
 	if (item1 < item2) {
@@ -333,6 +149,20 @@ void WinRatPer::addPlayer(unsigned int id, std::string displayAlias) {
 	ratingViewItemID++;
 }
 
+void WinRatPer::removePlayer(unsigned int id) {
+	long item = -1;
+	item = ratingTable->GetNextItem(item);
+	while (ratingTable->GetItemData(item) != id && item != -1) {
+		item = ratingTable->GetNextItem(item);
+	}
+	if (item == -1) {
+		wxMessageBox(wxString("Player not found. Player not removed from table (that is probably pretty bad)."), wxString("ID not found"));
+		return;
+	}
+	ratingTable->DeleteItem(item);
+	ratingViewItemID--;
+}
+
 void WinRatPer::updatePlayer(unsigned int id, double rating, unsigned int wins, unsigned int losses, unsigned int ties) {
 	long item = -1;
 	item = ratingTable->GetNextItem(item);
@@ -378,6 +208,70 @@ void WinRatPer::updatePlayerID(unsigned int oldId, std::string displayAlias, uns
 	ratingTable->SetItemData(item, newId);
 }
 
+// helper function
+int wxCALLBACK sortMyPlayers(wxIntPtr item1, wxIntPtr item2, wxIntPtr sortData) {
+
+	std::tuple<wxListView*, int, bool>* realSortData = (std::tuple<wxListView*, int, bool>*) sortData;
+
+	wxListView* theTable = std::get<0>(*realSortData);
+	int sortColumn = std::get<1>(*realSortData);
+	bool descend = std::get<2>(*realSortData);
+
+	long item1ID = theTable->FindItem(-1, item1);
+	long item2ID = theTable->FindItem(-1, item2);
+
+	std::string item1String = theTable->GetItemText(item1ID, sortColumn).ToStdString();
+	std::string item2String = theTable->GetItemText(item2ID, sortColumn).ToStdString();
+
+	// if the column represents numbers try to compare those as ints
+	int item1Int;
+	int item2Int;
+	try {
+		item1Int = std::stoi(item1String);
+		item2Int = std::stoi(item2String);
+	}
+	catch (const std::invalid_argument) {
+		// if it doesn't work use the strings
+
+		// make it case-insensitive
+		std::locale loc;
+		for (auto currChar = item1String.begin(); currChar != item1String.end(); currChar++) {
+			*currChar = std::tolower(*currChar, loc);
+		}
+		for (auto currChar = item2String.begin(); currChar != item2String.end(); currChar++) {
+			*currChar = std::tolower(*currChar, loc);
+		}
+
+		// compare
+		if (descend) {
+			return item1String.compare(item2String);
+		}
+		else {
+			return item1String.compare(item2String) * (-1);
+		}
+	}
+
+	if (item1Int < item2Int) {
+		if (descend) {
+			return 1;
+		}
+		else {
+			return -1;
+		}
+	}
+	else if (item1Int > item2Int) {
+		if (descend) {
+			return -1;
+		}
+		else {
+			return 1;
+		}
+	}
+	else {
+		return 0;
+	}
+}
+
 void WinRatPer::updatePlayerDisplayAlias(unsigned int id, std::string oldAlias, std::string newAlias) {
 	long item = -1;
 	item = ratingTable->GetNextItem(item);
@@ -393,21 +287,130 @@ void WinRatPer::updatePlayerDisplayAlias(unsigned int id, std::string oldAlias, 
 	delete sortData;
 }
 
-void WinRatPer::removePlayer(unsigned int id) {
-	long item = -1;
-	item = ratingTable->GetNextItem(item);
-	while (ratingTable->GetItemData(item) != id && item != -1) {
-		item = ratingTable->GetNextItem(item);
-	}
-	if (item == -1) {
-		wxMessageBox(wxString("Player not found. Player not removed from table (that is probably pretty bad)."), wxString("ID not found"));
-		return;
-	}
-	ratingTable->DeleteItem(item);
-	ratingViewItemID--;
-}
 
 void WinRatPer::sortMatchTable() {
+	std::tuple<wxListView*, int, bool>* sortData = new std::tuple<wxListView*, int, bool>(ratingTable, ratingViewSortedColumn, ratingViewDescending);
+	ratingTable->SortItems(&sortMyPlayers, (wxIntPtr)sortData);
+	delete sortData;
+}
+
+
+void WinRatPer::OnBtnAddPer(wxCommandEvent& event) {
+	// ------------ Creating Dialog ------------ 
+	wxDialog* addPerDialog = new wxDialog(this, wxID_ANY, "Add rating period", wxDefaultPosition, wxDefaultSize, wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER);
+
+	// ------------ Main Sizer ------------
+	wxBoxSizer* perSizer = new wxBoxSizer(wxVERTICAL);
+
+	// -==========- Period Selection -==========-
+	wxFlexGridSizer* dateSizer = new wxFlexGridSizer(2, wxSize(5, 15));
+	dateSizer->AddGrowableCol(0, 1);
+	dateSizer->AddGrowableCol(1, 1);
+	dateSizer->AddGrowableRow(1, 1);
+
+	wxStaticText* startText = new wxStaticText(addPerDialog, wxID_ANY, wxString("Start date:"));
+	wxCalendarCtrl* startDate = new wxCalendarCtrl(addPerDialog, wxID_ANY);
+	wxStaticText* endText = new wxStaticText(addPerDialog, wxID_ANY, wxString("End date:"));
+	wxCalendarCtrl* endDate = new wxCalendarCtrl(addPerDialog, wxID_ANY);
+
+	// add to period sizer
+	dateSizer->Add(startText);
+	dateSizer->Add(endText);
+	dateSizer->Add(startDate, 1, wxEXPAND);
+	dateSizer->Add(endDate, 1, wxEXPAND);
+
+	// add to main sizer
+	perSizer->Add(dateSizer, 1, wxEXPAND);
+
+	// -==========- confirm/cancel buttons -==========-
+	wxBoxSizer* btnSizer = new wxBoxSizer(wxHORIZONTAL);
+
+	wxButton* okBtn = new wxButton(addPerDialog, wxID_OK, wxString("OK"));
+	wxButton* cancBtn = new wxButton(addPerDialog, wxID_CANCEL, wxString("Cancel"));
+
+	// add to button sizer
+	btnSizer->Add(okBtn);
+	btnSizer->Add(cancBtn);
+
+	okBtn->SetDefault();
+	// add to main sizer
+	perSizer->Add(btnSizer, 0, wxALIGN_CENTER);
+
+	addPerDialog->SetSizerAndFit(perSizer);
+
+
+	switch (addPerDialog->ShowModal()) {
+	case wxID_OK:
+		if (endDate->GetDate().IsEarlierThan(startDate->GetDate()) || startDate->GetDate().IsEqualTo(endDate->GetDate())) {
+			wxMessageBox(wxString("Selected end date was earlier or equal to start date."), wxString("Invalid date"), wxOK | wxICON_WARNING);
+		}
+		else {
+			std::pair<wxDateTime, wxDateTime>* periodTime = new std::pair<wxDateTime, wxDateTime>(startDate->GetDate(), endDate->GetDate()); // Dead when leaving scope??
+
+			event.SetClientData(periodTime);
+			event.Skip();
+		}
+		break;
+	case wxID_CANCEL:
+		break;
+	}
+
+	addPerDialog->Destroy();
+}
+
+void WinRatPer::OnBtnRemPer(wxCommandEvent& event) {
+	long id = periodTable->GetFirstSelected();
+
+	if (id == -1) {
+		return;
+	}
+
+	wxDateTime start;
+	wxDateTime end;
+
+	wxString::const_iterator end_iterator; // will be set to where the parsing stops, so should be at the end then
+
+	if (!start.ParseFormat(periodTable->GetItemText(id, 1), defaultFormatString, &end_iterator)) {
+		wxMessageBox(wxString("The string: " + periodTable->GetItemText(id, 1) + " could not be parsed to a date. Please report"), wxString("Unsuccessful parsing of date"));
+		return;
+	}
+
+	if (!end.ParseFormat(periodTable->GetItemText(id, 2), defaultFormatString, &end_iterator)) {
+		wxMessageBox(wxString("The string: " + periodTable->GetItemText(id, 2) + " could not be parsed to a date. Please report"), wxString("Unsuccessful parsing of date"));
+		return;
+	}
+
+	std::pair<wxDateTime, wxDateTime>* data = new std::pair<wxDateTime, wxDateTime>(start, end);
+	event.SetClientData(data);
+	event.Skip();
+}
+
+void WinRatPer::OnBtnFinalize(wxCommandEvent& event) {
+	wxMessageDialog* warnDialog = new wxMessageDialog(this, wxString(
+		"You are about to finalize the ratings. This will remove all existing results and rating periods and set the current "
+		"ratings as new starting value for every player. "
+		"The current ratings will NOT be affected, but you will not be able to change the currently existing results. \n"
+		"The main reason to do this is to clean up the table of reported results, when the rating periods are over."), wxString("About to remove results"), wxYES_NO | wxCANCEL | wxICON_INFORMATION);
+
+	switch (warnDialog->ShowModal()) {
+	case wxID_YES:
+		event.Skip();
+	case wxID_NO:
+	case wxID_CANCEL:
+		warnDialog->Destroy();
+	}
+}
+
+void WinRatPer::OnColumnClick(wxListEvent& event) {
+	if (event.GetColumn() != -1) {
+		if (event.GetColumn() == ratingViewSortedColumn) {
+			ratingViewDescending = !ratingViewDescending;
+		}
+		else {
+			ratingViewSortedColumn = event.GetColumn();
+		}
+	}
+
 	std::tuple<wxListView*, int, bool>* sortData = new std::tuple<wxListView*, int, bool>(ratingTable, ratingViewSortedColumn, ratingViewDescending);
 	ratingTable->SortItems(&sortMyPlayers, (wxIntPtr)sortData);
 	delete sortData;

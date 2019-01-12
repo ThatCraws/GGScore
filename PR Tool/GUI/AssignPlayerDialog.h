@@ -32,11 +32,11 @@ private:
 	wxSpinCtrlDouble* deviationVal;
 	wxSpinCtrlDouble* volatilityVal;
 
-	void OnChoiceSelection(wxCommandEvent& event);
-
 	void setToAssignMode();
 	void setToCreateMode();
 	bool createMode;
+
+	void OnChoiceSelection(wxCommandEvent& event);
 };
 
 #endif

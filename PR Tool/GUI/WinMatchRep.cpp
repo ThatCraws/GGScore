@@ -88,63 +88,6 @@ WinMatchRep::WinMatchRep(wxWindow* parent, wxWindowID id)
 
 }
 
-void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
-	// ------------ Creating Dialog ------------ 
-	AddResultDialog* addResDialog = new AddResultDialog(this, wxID_ANY, wxString("Manual Match Report"), mainAliases);
-
-	
-	switch (addResDialog->ShowModal())
-	{
-	case wxID_OK:
-		if (addResDialog->getPlayer1Alias().IsSameAs(addResDialog->getPlayer2Alias())) {
-			wxMessageBox(wxString("The entered players were the same!"));
-			return;
-		}
-		break;
-	case wxID_CANCEL:
-	case wxID_EXIT:
-		addResDialog->Destroy();
-		return;
-	} 
-
-	// winner, loser, date, forfeit, tie, description
-	std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>();
-	
-	// Winner is first in vector
-	if (addResDialog->getP1Won()) {
-		*data = std::make_tuple(addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc().ToStdString());
-	}
-	else {
-		*data = std::make_tuple(addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc().ToStdString());
-	}
-
-	addResDialog->Destroy();
-
-	event.SetClientData(data);
-	event.Skip();
-}
-
-void WinMatchRep::OnBtnRem(wxCommandEvent& event) {
-	long item = matchTable->GetFirstSelected();
-
-	if (item == -1) {
-		return;
-	}
-
-	std::string winnerAlias = matchTable->GetItemText(item, 1).ToStdString();
-	std::string loserAlias = matchTable->GetItemText(item, 2).ToStdString();
-	wxDateTime matchDate;
-	matchDate.ParseFormat(matchTable->GetItemText(item, 0), defaultFormatString);
-	bool tie = matchTable->GetItemBackgroundColour(item) == wxColour(144, 144, 144);
-	bool forfeit = matchTable->GetItemBackgroundColour(item) == wxColour(208, 208, 208);
-	std::string description = matchTable->GetItemText(item, 3).ToStdString();
-
-	// winner, loser, date, forfeit, tie, description
-	std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>(winnerAlias, loserAlias, matchDate, forfeit, tie, description);
-
-	event.SetClientData(data);
-	event.Skip();
-}
 
 // helper functions (has to be above addResult and OnColumnClick) (used to sort the table)
 int wxCALLBACK sortMyResults(wxIntPtr item1, wxIntPtr item2, wxIntPtr sortData) {
@@ -208,30 +151,6 @@ int wxCALLBACK sortResultsByDate(wxIntPtr item1, wxIntPtr item2, wxIntPtr sortDa
 	}
 }
 
-void WinMatchRep::OnColumnClick(wxListEvent& event) {
-	if (event.GetColumn() != -1) {
-		if (event.GetColumn() == resultViewSortedColumn) {
-			resultViewDescending = !resultViewDescending;
-		}
-		else {
-			resultViewSortedColumn = event.GetColumn();
-		}
-		sortResultTable();
-	}
-}
-
-void WinMatchRep::sortResultTable() {
-	if (resultViewSortedColumn == 0) {
-		std::pair<wxListView*, bool>* sortData = new std::pair<wxListView*, bool>(matchTable, resultViewDescending);
-		matchTable->SortItems(&sortResultsByDate, (wxIntPtr)sortData);
-		delete sortData;
-	}
-	else {
-		std::tuple<wxListView*, int, bool>* sortData = new std::tuple<wxListView*, int, bool>(matchTable, resultViewSortedColumn, resultViewDescending);
-		matchTable->SortItems(&sortMyResults, (wxIntPtr)sortData);
-		delete sortData;
-	}
-}
 
 void WinMatchRep::addResult(std::string winnerAlias, std::string loserAlias, const wxDateTime date, bool forfeit, bool tie, std::string desc) {
 
@@ -281,8 +200,8 @@ void WinMatchRep::removeResult(std::string winnerAlias, std::string loserAlias, 
 	item = matchTable->GetNextItem(item);
 
 	while (!(matchTable->GetItemText(item, 0).IsSameAs(date.Format(defaultFormatString))
-		  && matchTable->GetItemText(item, 1).IsSameAs(wxString(winnerAlias))
-		  && matchTable->GetItemText(item, 2).IsSameAs(wxString(loserAlias)))) {
+		&& matchTable->GetItemText(item, 1).IsSameAs(wxString(winnerAlias))
+		&& matchTable->GetItemText(item, 2).IsSameAs(wxString(loserAlias)))) {
 
 		item = matchTable->GetNextItem(item);
 	}
@@ -305,19 +224,24 @@ void WinMatchRep::removeResult(std::string winnerAlias, std::string loserAlias, 
 	}
 }
 
-void WinMatchRep::reSetItemData() {
-	long item = matchTable->GetNextItem(-1);
-
-	while (item != -1) {
-		matchTable->SetItemData(item, item);
-		item = matchTable->GetNextItem(item);
-	}
-}
-
 void WinMatchRep::clearResultTable() {
 	matchTable->DeleteAllItems();
 	listViewItemID = 0;
 }
+
+void WinMatchRep::sortResultTable() {
+	if (resultViewSortedColumn == 0) {
+		std::pair<wxListView*, bool>* sortData = new std::pair<wxListView*, bool>(matchTable, resultViewDescending);
+		matchTable->SortItems(&sortResultsByDate, (wxIntPtr)sortData);
+		delete sortData;
+	}
+	else {
+		std::tuple<wxListView*, int, bool>* sortData = new std::tuple<wxListView*, int, bool>(matchTable, resultViewSortedColumn, resultViewDescending);
+		matchTable->SortItems(&sortMyResults, (wxIntPtr)sortData);
+		delete sortData;
+	}
+}
+
 
 // "Two"-postfix because "compareAlphabetically" is already in playerEdit
 // Would have to call this everytime before calling setMainAliases, if I tried to put it in MainWin
@@ -356,4 +280,85 @@ void WinMatchRep::updatePlayerDisplayAlias(std::string oldAlias, std::string new
 		item = matchTable->GetNextItem(item);
 	}
 	sortResultTable();
+}
+
+
+void WinMatchRep::reSetItemData() {
+	long item = matchTable->GetNextItem(-1);
+
+	while (item != -1) {
+		matchTable->SetItemData(item, item);
+		item = matchTable->GetNextItem(item);
+	}
+}
+
+
+void WinMatchRep::OnBtnAdd(wxCommandEvent& event) {
+	// ------------ Creating Dialog ------------ 
+	AddResultDialog* addResDialog = new AddResultDialog(this, wxID_ANY, wxString("Manual Match Report"), mainAliases);
+
+
+	switch (addResDialog->ShowModal())
+	{
+	case wxID_OK:
+		if (addResDialog->getPlayer1Alias().IsSameAs(addResDialog->getPlayer2Alias())) {
+			wxMessageBox(wxString("The entered players were the same!"));
+			return;
+		}
+		break;
+	case wxID_CANCEL:
+	case wxID_EXIT:
+		addResDialog->Destroy();
+		return;
+	}
+
+	// winner, loser, date, forfeit, tie, description
+	std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>();
+
+	// Winner is first in vector
+	if (addResDialog->getP1Won()) {
+		*data = std::make_tuple(addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc().ToStdString());
+	}
+	else {
+		*data = std::make_tuple(addResDialog->getPlayer2Alias().ToStdString(), addResDialog->getPlayer1Alias().ToStdString(), addResDialog->getDate(), addResDialog->isForfeit(), addResDialog->isTie(), addResDialog->getDesc().ToStdString());
+	}
+
+	addResDialog->Destroy();
+
+	event.SetClientData(data);
+	event.Skip();
+}
+
+void WinMatchRep::OnBtnRem(wxCommandEvent& event) {
+	long item = matchTable->GetFirstSelected();
+
+	if (item == -1) {
+		return;
+	}
+
+	std::string winnerAlias = matchTable->GetItemText(item, 1).ToStdString();
+	std::string loserAlias = matchTable->GetItemText(item, 2).ToStdString();
+	wxDateTime matchDate;
+	matchDate.ParseFormat(matchTable->GetItemText(item, 0), defaultFormatString);
+	bool tie = matchTable->GetItemBackgroundColour(item) == wxColour(144, 144, 144);
+	bool forfeit = matchTable->GetItemBackgroundColour(item) == wxColour(208, 208, 208);
+	std::string description = matchTable->GetItemText(item, 3).ToStdString();
+
+	// winner, loser, date, forfeit, tie, description
+	std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>* data = new std::tuple<std::string, std::string, wxDateTime, bool, bool, std::string>(winnerAlias, loserAlias, matchDate, forfeit, tie, description);
+
+	event.SetClientData(data);
+	event.Skip();
+}
+
+void WinMatchRep::OnColumnClick(wxListEvent& event) {
+	if (event.GetColumn() != -1) {
+		if (event.GetColumn() == resultViewSortedColumn) {
+			resultViewDescending = !resultViewDescending;
+		}
+		else {
+			resultViewSortedColumn = event.GetColumn();
+		}
+		sortResultTable();
+	}
 }

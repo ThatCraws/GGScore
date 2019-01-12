@@ -95,33 +95,6 @@ AssignPlayerDialog::AssignPlayerDialog(wxWindow* parent, wxWindowID id, const wx
 	Bind(wxEVT_CHOICE, &AssignPlayerDialog::OnChoiceSelection, this, aliasChoice->GetId());
 }
 
-void AssignPlayerDialog::OnChoiceSelection(wxCommandEvent& event) {
-	if (aliasChoice->GetStringSelection().IsSameAs("<New player>")) {
-		setToCreateMode();
-	}
-	else {
-		setToAssignMode();
-	}
-}
-
-void AssignPlayerDialog::setToAssignMode() {
-	if (createMode) {
-		mainSizer->Hide(newPlayerValuesSizer, true);
-		mainSizer->Layout();
-		this->SetSizerAndFit(mainSizer);
-		createMode = false;
-	}
-}
-
-void AssignPlayerDialog::setToCreateMode() {
-	if (!createMode) {
-		mainSizer->Show(newPlayerValuesSizer, true, true);
-		mainSizer->Layout();
-		this->SetSizerAndFit(mainSizer);
-		createMode = true;
-	}
-}
-
 std::string AssignPlayerDialog::getAliasToAssignTo() {
 	if (aliasChoice->GetStringSelection().ToStdString() == "<New player>") { return ""; }
 	return aliasChoice->GetStringSelection().ToStdString();
@@ -149,5 +122,34 @@ double AssignPlayerDialog::getVolatility() const
 		return -1;
 	}
 	return volatilityVal->GetValue();
+}
+
+
+void AssignPlayerDialog::setToAssignMode() {
+	if (createMode) {
+		mainSizer->Hide(newPlayerValuesSizer, true);
+		mainSizer->Layout();
+		this->SetSizerAndFit(mainSizer);
+		createMode = false;
+	}
+}
+
+void AssignPlayerDialog::setToCreateMode() {
+	if (!createMode) {
+		mainSizer->Show(newPlayerValuesSizer, true, true);
+		mainSizer->Layout();
+		this->SetSizerAndFit(mainSizer);
+		createMode = true;
+	}
+}
+
+
+void AssignPlayerDialog::OnChoiceSelection(wxCommandEvent& event) {
+	if (aliasChoice->GetStringSelection().IsSameAs("<New player>")) {
+		setToCreateMode();
+	}
+	else {
+		setToAssignMode();
+	}
 }
 
