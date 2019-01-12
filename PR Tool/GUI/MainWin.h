@@ -7,6 +7,8 @@
 
 // for the event handler of the Tau-constant
 #include <wx/spinctrl.h>
+// for the event handler of the navi-notebook (when opening the "Player Edit"-tab)
+#include <wx/notebook.h>
 
 // forward declarations
 class Glicko2::Player;
@@ -242,6 +244,7 @@ private:
 	void OnPlayerEditAliasMainBtn(wxCommandEvent& event);
 	void OnPlayerEditToggleVisibility(wxCommandEvent& event);
 	void OnPlayerEditPlayerRemBtn(wxCommandEvent& event);
+	void OnNotebookChanged(wxBookCtrlEvent& event); // Not directly associated with "Player Edit", but used only to set its statistics
 	// Settings/About tab
 	void OnSetAbtIncludeBox(wxCommandEvent& event);
 	void OnSetAbtTauSpin(wxSpinDoubleEvent& event);

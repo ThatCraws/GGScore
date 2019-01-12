@@ -199,6 +199,15 @@ void WinPlayerEdit::OnPlayerRemBtn(wxCommandEvent& event) {
 }
 
 
+std::string WinPlayerEdit::getSelectionAlias() {
+	if (aliasChoice->GetStringSelection().ToStdString() == "<New player>") {
+		return "";
+	}
+	else {
+		return aliasChoice->GetStringSelection().ToStdString();
+	}
+}
+
 bool compareAlphabetically(std::string stringOne, std::string stringTwo) {
 
 	std::transform(stringOne.begin(), stringOne.end(), stringOne.begin(), std::tolower);

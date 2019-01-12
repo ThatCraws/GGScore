@@ -3,7 +3,6 @@
 #include <wx/wx.h>
 #endif
 
-#include <wx/notebook.h>
 #include <wx/sstream.h>
 
 #include <fstream>
@@ -143,6 +142,7 @@ MainWin::MainWin()
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditAliasMainBtn, this, ID_PLA_EDIT_MAIN_ALIAS_BTN);
 	Bind(wxEVT_CHECKBOX, &MainWin::OnPlayerEditToggleVisibility, this, ID_PLA_EDIT_HIDE_PLA_BTN);
 	Bind(wxEVT_BUTTON, &MainWin::OnPlayerEditPlayerRemBtn, this, ID_PLA_EDIT_REM_BTN);
+	Bind(wxEVT_NOTEBOOK_PAGE_CHANGED, &MainWin::OnNotebookChanged, this, navi->GetId());
 
 	// Event not handled in Settings/About tab
 	Bind(wxEVT_CHECKBOX, &MainWin::OnSetAbtIncludeBox, this, ID_SET_ABT_INC_BOX);
@@ -1715,6 +1715,28 @@ void MainWin::OnPlayerEditPlayerRemBtn(wxCommandEvent& event) {
 			case wxID_NO:
 				delete toRem;
 				return;
+			}
+		}
+	}
+}
+
+void MainWin::OnNotebookChanged(wxBookCtrlEvent& event) {
+	// if the "Player Edit"-tab gets opened
+	if (event.GetSelection() == 2) {
+		unsigned int id = -1;
+		// if a player (not <New player> is selected) get the player's ID
+		if (playerEditWindow->getSelectionAlias() != "") {
+			id = playerIDByAlias(playerEditWindow->getSelectionAlias());
+		}
+		if (id != -1) {
+			// look for player
+			for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
+				if (currPlayer->id == id) {
+					// update the player's stats (could be outdated, if one of the player's results got removed)
+					std::vector<unsigned int> stats = getPlayerStats(*currPlayer);
+					Rating& currRatingValues = currPlayer->ratings[currPlayer->ratings.size() - 1];
+					playerEditWindow->setStats(currRatingValues.rating, currRatingValues.deviation, currRatingValues.volatility, stats[0], stats[1], stats[2]);
+				}
 			}
 		}
 	}

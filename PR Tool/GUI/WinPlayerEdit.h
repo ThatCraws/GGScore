@@ -10,6 +10,7 @@ class WinPlayerEdit : public wxPanel {
 public:
 	WinPlayerEdit(wxWindow* parent, wxWindowID winid = wxID_ANY, wxArrayString choices = wxArrayString());
 
+	std::string getSelectionAlias();
 	void setMainAliases(std::vector<std::string> newMainAliases, std::string selected = "<New player>");
 	void setPlayersAliases(std::vector<std::string> playersAliases);
 	void setHidden(bool isHidden);
