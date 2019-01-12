@@ -15,8 +15,7 @@ WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString c
 
 	wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
 
-	// Alias management
-	// modification buttons
+	// -=========== Alias management ==========-
 	wxBoxSizer* aliasManSizer = new wxBoxSizer(wxHORIZONTAL);
 	wxBoxSizer* aliasModSizer = new wxBoxSizer(wxVERTICAL);
 	
@@ -24,6 +23,7 @@ WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString c
 	aliasChoice = new wxChoice(this, ID_PLA_EDIT_PLA_CHOICE, wxDefaultPosition, wxDefaultSize, mainAliases); 
 	aliasChoice->SetSelection(0);
 
+	// ------------ Modification buttons ------------
 	wxButton* addAliasBtn = new wxButton(this, ID_PLA_EDIT_ADD_ALIAS_BTN, wxString("Add alias"));
 	wxButton* remAliasBtn = new wxButton(this, ID_PLA_EDIT_REM_ALIAS_BTN, wxString("Remove alias"));
 	wxButton* mainAliasBtn = new wxButton(this, ID_PLA_EDIT_MAIN_ALIAS_BTN, wxString("Make main alias"));
@@ -41,9 +41,56 @@ WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString c
 	aliasListView->InsertColumn(0, wxEmptyString, 0, winMinWidth/3*2);
 
 	aliasManSizer->Add(aliasModSizer);
-	aliasManSizer->Add(aliasListView, 1, wxEXPAND);
 
-	// Player management
+	// <=========== Player management ==========>
+
+	// -=========== Player information ==========-
+	// infoSizer contains the alias list as well as the stats
+	wxBoxSizer* infoSizer = new wxBoxSizer(wxVERTICAL);
+	infoSizer->Add(aliasListView, 1, wxEXPAND);
+
+	// ------------ Rating display ------------
+	wxStaticBoxSizer* ratingSizer = new wxStaticBoxSizer(wxHORIZONTAL, this, wxString("Rating Values"));
+	wxGridSizer* ratingGrid = new wxGridSizer(3, 2, wxSize(20, 0));
+
+	wxStaticText* ratingTxt = new wxStaticText(this, wxID_ANY, wxString("Rating: "));
+	ratingVal = new wxStaticText(this, wxID_ANY, wxString("-"));
+	wxStaticText* deviationTxt = new wxStaticText(this, wxID_ANY, wxString("Deviation: "));
+	deviationVal = new wxStaticText(this, wxID_ANY, wxString("-"));
+	wxStaticText* volatilityTxt = new wxStaticText(this, wxID_ANY, wxString("Volatility: "));
+	volatilityVal = new wxStaticText(this, wxID_ANY, wxString("-"));
+
+	ratingGrid->Add(ratingTxt);
+	ratingGrid->Add(ratingVal);
+	ratingGrid->Add(deviationTxt);
+	ratingGrid->Add(deviationVal);
+	ratingGrid->Add(volatilityTxt);
+	ratingGrid->Add(volatilityVal);
+	ratingSizer->Add(ratingGrid);
+
+	// ------------ Set count display ------------
+	wxStaticBoxSizer* setCountDisplaySizer = new wxStaticBoxSizer(wxVERTICAL, this, wxString("Set Count"));
+	wxGridSizer* setCountGrid = new wxGridSizer(2, 2, wxSize(0, 0));
+	wxStaticText* setCountTxt = new wxStaticText(this, wxID_ANY, wxString("W/L/T(Total): "));
+	setCountVal = new wxStaticText(this, wxID_ANY, wxString("-"));
+
+	wxStaticText* winPercentTxt = new wxStaticText(this, wxID_ANY, wxString("Win%: "));
+	winPercentVal = new wxStaticText(this, wxID_ANY, wxString("-"));
+
+	setCountGrid->Add(setCountTxt);
+	setCountGrid->Add(setCountVal);
+	setCountGrid->Add(winPercentTxt);
+	setCountGrid->Add(winPercentVal);
+
+	setCountDisplaySizer->Add(setCountGrid);
+
+	infoSizer->Add(ratingSizer, 0, wxEXPAND);
+	infoSizer->Add(setCountDisplaySizer, 0, wxEXPAND);
+
+	aliasManSizer->Add(infoSizer, 1, wxEXPAND);
+
+	// -=========== Player modification ==========-
+	// Remove button
 	wxButton* remBtn = new wxButton(this, ID_PLA_EDIT_REM_BTN, wxString("Remove player"));
 
 	Bind(wxEVT_CHOICE, &WinPlayerEdit::OnPlayerChoice, this, ID_PLA_EDIT_PLA_CHOICE);
@@ -77,6 +124,13 @@ void WinPlayerEdit::OnPlayerChoice(wxCommandEvent& event) {
 		if (hidePlayerCheck->IsEnabled()) {
 			hidePlayerCheck->Disable();
 		}
+		// set all stats to "-"
+		ratingVal->SetLabel(wxString("-"));
+		deviationVal->SetLabel(wxString("-"));
+		volatilityVal->SetLabel(wxString("-"));
+
+		setCountVal->SetLabel(wxString("-"));
+		winPercentVal->SetLabel(wxString("-"));
 	}
 }
 
@@ -191,4 +245,23 @@ void WinPlayerEdit::setHidden(bool isHidden) {
 
 bool WinPlayerEdit::getHidden() const {
 	return hidePlayerCheck->GetValue();
+}
+
+void WinPlayerEdit::setStats(double rating, double deviation, double volatility, unsigned int wins, unsigned int losses, unsigned int ties) {
+
+	ratingVal->SetLabel(wxString(std::to_string(rating).substr(0, std::to_string(rating).find_last_of('.'))));
+	deviationVal->SetLabel(wxString(std::to_string(deviation).substr(0, std::to_string(deviation).find_last_of('.'))));
+	volatilityVal->SetLabel(wxString(std::to_string(volatility).substr(0, std::to_string(volatility).find_last_of('.') + 3)));
+
+	setCountVal->SetLabel(wxString(
+		std::to_string(wins) + 
+		"/" + std::to_string(losses) + 
+		"/" + std::to_string(ties) + 
+		"(" + std::to_string(wins+losses+ties) + ")"));
+
+	float winPercent = 0;
+	if (wins + losses + ties != 0) {
+		winPercent = ((float)wins + ((float)ties / 2)) / (((float)wins + (float)losses + (float)ties) / 100);
+	}
+	winPercentVal->SetLabel(wxString(std::to_string((int)winPercent) + "%"));
 }

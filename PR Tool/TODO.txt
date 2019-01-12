@@ -3,5 +3,3 @@ TODO
 - Use const qualifier where possible
 
 - Use wxUnused where possible (mainly the event-handling methods)
-
-- Show statistics in "Player Edit"

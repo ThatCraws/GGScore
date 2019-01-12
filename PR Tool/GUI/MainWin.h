@@ -82,14 +82,20 @@ private:
 	unsigned int addNewPlayer(std::vector<std::string> atLeastOneAlias, std::vector<Rating>* optionalRatingVector = nullptr, unsigned int wins = 0, unsigned int losses = 0, unsigned int ties = 0, bool visibility = true);
 	void removePlayer(unsigned int id);
 
-	/* ------------ updatePlayerEntry ------------
-	Updates the given player's entry in the rating table (in "Rating Periods"-tab)
+	/* ------------ getPlayerStats ------------
+	Returns the given player-structs stats as shown in the "Player Edit"-tab and the "Rating Period"-tab's rating table.
+	Only results within a rating period count towards the stats.
 
 	Parameter:
-		player	the player-struct whose entry to update
+		player	the player-struct whose stats to return
+	Return:
+		a vector consisting of the stats of the given player:
+			0: wins
+			1: losses
+			2: ties
 
 	*/
-	void updatePlayerEntry(Player& player);
+	std::vector<unsigned int> getPlayerStats(Player& player);
 
 	/* ------------ findPeriod ------------
 	Looks for a given period of time in the rating periods-vector and returns it

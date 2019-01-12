@@ -14,11 +14,19 @@ public:
 	void setPlayersAliases(std::vector<std::string> playersAliases);
 	void setHidden(bool isHidden);
 	bool getHidden() const;
+	void setStats(double rating, double deviation, double volatility, unsigned int wins, unsigned int losses, unsigned int ties);
 private:
 	// controls used in methods
 	wxChoice* aliasChoice;
 	wxListView* aliasListView;
 	wxCheckBox* hidePlayerCheck;
+	
+	wxStaticText* ratingVal;
+	wxStaticText* deviationVal;
+	wxStaticText* volatilityVal;
+
+	wxStaticText* setCountVal;
+	wxStaticText* winPercentVal;
 
 	wxArrayString mainAliases;
 

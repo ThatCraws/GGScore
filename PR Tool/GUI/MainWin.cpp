@@ -372,7 +372,10 @@ void MainWin::recalculateAllPeriods() {
 	// Update rating period-tab rating table 
 	// Count wins and losses per player
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
-		updatePlayerEntry(*currPlayer);
+		if (currPlayer->visible) {
+			std::vector<unsigned int> stats = getPlayerStats(*currPlayer);
+			periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, stats[0], stats[1], stats[2]);
+		}
 	}
 	periodWindow->sortMatchTable();
 }
@@ -492,52 +495,51 @@ void MainWin::removePlayer(unsigned int id) {
 	}
 }
 
-void MainWin::updatePlayerEntry(Player& player) {
-	if (player.visible) {
-		unsigned int wins = 0;
-		unsigned int losses = 0;
-		unsigned int ties = 0;
+std::vector<unsigned int> MainWin::getPlayerStats(Player& player) {
+	unsigned int wins = 0;
+	unsigned int losses = 0;
+	unsigned int ties = 0;
 
 
-		for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-			std::vector<Glicko2::Result> relevantResults;
+	for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+		std::vector<Glicko2::Result> relevantResults;
 
-			// fill relevantResults vector with Glicko-Results from period
-			std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
-			for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
-				relevantResults.push_back(currStructResult->result);
-			}
+		// fill relevantResults vector with Glicko-Results from period
+		std::vector<Result> structResults = getResultsInPeriod(currPeriod->first, currPeriod->second, setAbtWindow->getIncludeForfeits());
+		for (auto currStructResult = structResults.begin(); currStructResult != structResults.end(); currStructResult++) {
+			relevantResults.push_back(currStructResult->result);
+		}
 
-			for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
-				bool isP1 = player.id == currResult->getP1Id();
-				bool isP2 = player.id == currResult->getP2Id();
+		for (auto currResult = relevantResults.begin(); currResult != relevantResults.end(); currResult++) {
+			bool isP1 = player.id == currResult->getP1Id();
+			bool isP2 = player.id == currResult->getP2Id();
 
-				if (isP1) {
-					if (currResult->getP1Id() == currResult->getWinnerId()) {
-						wins++;
-					}
-					else if (currResult->getP2Id() == currResult->getWinnerId()) {
-						losses++;
-					}
-					else {
-						ties++;
-					}
+			if (isP1) {
+				if (currResult->getP1Id() == currResult->getWinnerId()) {
+					wins++;
 				}
-				else if (isP2) {
-					if (currResult->getP2Id() == currResult->getWinnerId()) {
-						wins++;
-					}
-					else if (currResult->getP1Id() == currResult->getWinnerId()) {
-						losses++;
-					}
-					else {
-						ties++;
-					}
+				else if (currResult->getP2Id() == currResult->getWinnerId()) {
+					losses++;
+				}
+				else {
+					ties++;
+				}
+			}
+			else if (isP2) {
+				if (currResult->getP2Id() == currResult->getWinnerId()) {
+					wins++;
+				}
+				else if (currResult->getP1Id() == currResult->getWinnerId()) {
+					losses++;
+				}
+				else {
+					ties++;
 				}
 			}
 		}
-		periodWindow->updatePlayer(player.id, player.ratings[player.ratings.size() - 1].rating, player.wins + wins, player.losses + losses, player.ties + ties);
 	}
+	std::vector<unsigned int> stats{ player.wins + wins, player.losses + losses, player.ties + ties };
+	return stats;
 }
 
 const std::pair<wxDateTime, wxDateTime>* MainWin::findPeriod(wxDateTime& start, wxDateTime& end) {
@@ -1523,11 +1525,21 @@ void MainWin::OnPlayerEditPlayerChoice(wxCommandEvent& event) {
 	std::vector<std::string> mainAliases = getPlayersAliases(id);
 	playerEditWindow->setPlayersAliases(mainAliases);
 
+	// to save stats in (wins, losses, ties)
+	std::vector<unsigned int> stats;
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
 		if (currPlayer->id == id) {
 			// the default is that a player is visible and the checkbox is unchecked (which means true for the box means a hidden player...
 			// ...but true for a player means shown
 			playerEditWindow->setHidden(!currPlayer->visible);
+			// get stats of the player
+			stats = getPlayerStats(*currPlayer);
+			Rating& currRatingValues = currPlayer->ratings[currPlayer->ratings.size() - 1];
+
+			playerEditWindow->setStats(currRatingValues.rating, currRatingValues.deviation, currRatingValues.volatility, stats[0], stats[1], stats[2]);
+
+			delete theAlias;
+			return;
 		}
 	}
 
@@ -1666,7 +1678,9 @@ void MainWin::OnPlayerEditToggleVisibility(wxCommandEvent& event) {
 			currPlayer->visible = !(playerEditWindow->getHidden());
 			if (currPlayer->visible) {
 				periodWindow->addPlayer(currPlayer->id, currPlayer->aliases[0]);
-				updatePlayerEntry(*currPlayer);
+
+				std::vector<unsigned int> stats = getPlayerStats(*currPlayer);
+				periodWindow->updatePlayer(currPlayer->id, currPlayer->ratings[currPlayer->ratings.size() - 1].rating, stats[0], stats[1], stats[2]);
 				periodWindow->sortMatchTable();
 			}
 			else {
