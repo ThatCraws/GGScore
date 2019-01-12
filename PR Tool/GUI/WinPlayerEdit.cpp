@@ -228,6 +228,14 @@ void WinPlayerEdit::setMainAliases(std::vector<std::string> newMainAliases, std:
 		if (selected != "<New player>") {
 			hidePlayerCheck->Enable();
 		}
+		else {
+			ratingVal->SetLabel(wxString("-"));
+			deviationVal->SetLabel(wxString("-"));
+			volatilityVal->SetLabel(wxString("-"));
+
+			setCountVal->SetLabel(wxString("-"));
+			winPercentVal->SetLabel(wxString("-"));
+		}
 	}
 }
 
