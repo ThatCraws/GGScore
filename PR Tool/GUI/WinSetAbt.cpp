@@ -93,7 +93,7 @@ WinSetAbt::WinSetAbt(wxWindow* parent, wxWindowID winID, double rating, double d
 	// -=========== About ==========-
 	wxStaticBoxSizer* aboutSizer = new wxStaticBoxSizer(wxVERTICAL, this, wxString("About"));
 	wxTextCtrl* aboutText = new wxTextCtrl(this, wxID_ANY, wxString(
-		"The PR Tool is designed to create Power Rankings using the Glicko-2 algorithm by Mark E. Glickoman and importing results from challonge-brackets.\n\n"
+		"The PR Tool is designed to create Power Rankings using the Glicko-2 algorithm by Dr. Mark E. Glickman and importing results from challonge-brackets.\n\n"
 		"GUI created using wxWidgets\n" 
 		".json-file management done using JsonCpp\n"
 		"Networking done using libcurl\n"

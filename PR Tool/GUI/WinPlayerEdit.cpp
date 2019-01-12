@@ -9,6 +9,7 @@
 
 #include "wx/listctrl.h"
 #include <cctype>
+#include <sstream>
 
 WinPlayerEdit::WinPlayerEdit(wxWindow* parent, wxWindowID winid, wxArrayString choices)
 	:wxPanel(parent, winid), mainAliases(choices) {
@@ -172,10 +173,13 @@ bool WinPlayerEdit::getHidden() const {
 }
 
 void WinPlayerEdit::setStats(double rating, double deviation, double volatility, unsigned int wins, unsigned int losses, unsigned int ties) {
+	std::ostringstream volParse;
+	volParse.precision(7);
+	volParse << volatility;
 
 	ratingVal->SetLabel(wxString(std::to_string(rating).substr(0, std::to_string(rating).find_last_of('.'))));
-	deviationVal->SetLabel(wxString(std::to_string(deviation).substr(0, std::to_string(deviation).find_last_of('.'))));
-	volatilityVal->SetLabel(wxString(std::to_string(volatility).substr(0, std::to_string(volatility).find_last_of('.') + 3)));
+	deviationVal->SetLabel(wxString(std::to_string(deviation).substr(0, std::to_string(deviation).find_last_of('.') + 3)));
+	volatilityVal->SetLabel(wxString(volParse.str()));
 
 	setCountVal->SetLabel(wxString(
 		std::to_string(wins) + 
