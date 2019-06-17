@@ -370,7 +370,6 @@ void MainWin::recalculateAllPeriods() {
 	results.swap(newResults);
 
 	// Update rating period-tab rating table 
-	// Count wins and losses per player
 	for (auto currPlayer = playerBase.begin(); currPlayer != playerBase.end(); currPlayer++) {
 		if (currPlayer->visible) {
 			std::vector<unsigned int> stats = getPlayerStats(*currPlayer);
@@ -406,11 +405,11 @@ unsigned int MainWin::addNewPlayer(std::vector<std::string> atLeastOneAlias, std
 
 	// When a new player is created he has the same rating in ALL rating periods... 
 	// AFTER this method the rating values will be adjusted.
-	// If a result with new player in an older period is added the old values will be adjusted
+	// If a result with the new player in an older period is added, the old values will be adjusted
 	// It is important to create his ratingPeriods-vector with one entry for the start values AND one entry for each rating period that currently exists
 	// When a ratingVector is provided as parameter it will be assumed that his first value is the starting value,...
 	// ...the second the values after the first rating period and so on. Therefore, if the vector is smaller than 1(start values)+number of rating periods...
-	// ...its last element will be pushed (so the number of elements is right AND contains the current value) until it is at least of that size.
+	// ...its last element will be pushed/duplicated (so the number of elements is right AND contains the current value) until it is at least of that size.
 	while (optionalRatingVector->size() < 1 + ratingPeriods.size()) {
 		optionalRatingVector->push_back((*optionalRatingVector)[optionalRatingVector->size() - 1]);
 	}
@@ -707,19 +706,27 @@ bool MainWin::loadWorld() {
 			aliases.push_back(players[i]["aliases"][j].asString());
 		}
 
-		std::vector<Rating> ratingVector; // vector containing Rating for each rating period (start values -> current)
+		std::vector<Rating> ratingVector; // vector containing the start-rating of the player and entries for each rating period (start values -> current)
 
 		const Json::Value& ratingVals = players[i]["rating values"]; // array of current players' rating values (or rather rating values-objects)
 
-		// storing the players' rating values per rating period
-		for (unsigned int j = 0; j < ratingVals.size(); j++) {
+		// loading and storing the players' start rating values and inserting items into the ratingVal-vector per rating period
+
+		Rating toAdd;
+		toAdd.rating = ratingVals[0]["rating"].asDouble();
+		toAdd.deviation = ratingVals[0]["deviation"].asDouble();
+		toAdd.volatility = ratingVals[0]["volatility"].asDouble();
+
+		ratingVector.resize(ratingVals.size(), toAdd);
+
+		/*for (unsigned int j = 0; j < ratingVals.size(); j++) {
 			Rating toAdd;
 			toAdd.rating = ratingVals[j]["rating"].asDouble();
 			toAdd.deviation = ratingVals[j]["deviation"].asDouble();
 			toAdd.volatility = ratingVals[j]["volatility"].asDouble();
 
 			ratingVector.push_back(toAdd);
-		}
+		}*/
 
 		// could use the default values of addPlayer, but this spares us the ifception
 		unsigned int wins = 0;
@@ -1178,36 +1185,35 @@ void MainWin::OnMatRepRemBtn(wxCommandEvent& event) {
 		if (currResult->date.IsSameDate(std::get<2>(*data))) {
 
 			// check if given winner(player 1 for ties) alias is a player in the current result
-			if (getMainAlias(currResult->result.getP1Id()) == std::get<0>(*data)) {
+			if ((getMainAlias(currResult->result.getP1Id()) == std::get<0>(*data) && getMainAlias(currResult->result.getP2Id()) == std::get<1>(*data)) ||
+				(getMainAlias(currResult->result.getP2Id()) == std::get<0>(*data) && getMainAlias(currResult->result.getP1Id()) == std::get<1>(*data))) { // || getMainAlias(currResult->result.getP2Id()) == std::get<0>(*data)
 				// compare other alias
-								
-				if (getMainAlias(currResult->result.getP2Id()) == std::get<1>(*data)) {
+
 					// the forfeit-flag of the result to remove and the current one has to be the same
-					if (std::get<3>(*data) == currResult->forfeit) {
+				if (std::get<3>(*data) == currResult->forfeit) {
 
-						// if the result to remove is a tie the winnerId should be -1 (or we'd remove the wrong result)
-						if ((std::get<4>(*data) && currResult->result.getWinnerId() == -1)
-							|| (!std::get<4>(*data) && currResult->result.getWinnerId() != -1)) {
-							// lastly, the description (or lack thereof) has to be the same for both
-							if (std::get<5>(*data) == currResult->desc) {
-								results.erase(currResult);
-								matchWindow->removeResult();
+					// if the result to remove is a tie the winnerId should be -1 (or we'd remove the wrong result)
+					if ((std::get<4>(*data) && currResult->result.getWinnerId() == -1)
+						|| (!std::get<4>(*data) && currResult->result.getWinnerId() != -1)) {
+						// lastly, the description (or lack thereof) has to be the same for both
+						if (std::get<5>(*data) == currResult->desc) {
+							results.erase(currResult);
+							matchWindow->removeResult();
 
-								// TODO use again, once recalculateFromPeriod is reimplemented (or just leave as is)...
-								/*
-								// If match was inside of an existing rating period recalculate from that period on
-								for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
-									if ((std::get<2>(*data).IsLaterThan(currPeriod->first) || std::get<2>(*data).IsEqualTo(currPeriod->first))
-										&& (std::get<2>(*data).IsEarlierThan(currPeriod->second) || std::get<2>(*data).IsEqualTo(currPeriod->second))) {
-										//recalculateFromPeriod(*currPeriod);
-									}
+							// TODO use again, once recalculateFromPeriod is reimplemented (or just leave as is)...
+							/*
+							// If match was inside of an existing rating period recalculate from that period on
+							for (auto currPeriod = ratingPeriods.begin(); currPeriod != ratingPeriods.end(); currPeriod++) {
+								if ((std::get<2>(*data).IsLaterThan(currPeriod->first) || std::get<2>(*data).IsEqualTo(currPeriod->first))
+									&& (std::get<2>(*data).IsEarlierThan(currPeriod->second) || std::get<2>(*data).IsEqualTo(currPeriod->second))) {
+									//recalculateFromPeriod(*currPeriod);
 								}
-								*/
-								recalculateAllPeriods();
-
-								delete data;
-								return;
 							}
+							*/
+							recalculateAllPeriods();
+
+							delete data;
+							return;
 						}
 					}
 				}
@@ -1457,6 +1463,25 @@ void MainWin::OnMatRepImportBtn(wxCommandEvent& event) {
 							results.insert(toAdd);
 							matchWindow->addResult(getMainAlias(p2Id), getMainAlias(p1Id), dateOfTourney, false, false, descOfTourney);
 						}
+
+						else if (!currMatch["winner_id"].isNull()) { //dennis-clause (when the scores are equal, but a winner was picked aka Dennis leaving/forfeiting at 1-1)
+							if (playerIDByAlias(participantsMap[currMatch["winner_id"].asUInt()]) == p1Id) {
+								Glicko2::Result resultToAdd = Glicko2::Result(p1Id, p2Id, p1Id);
+							}
+							else {
+								Glicko2::Result resultToAdd = Glicko2::Result(p2Id, p1Id, p2Id);
+
+								Result toAdd;
+								toAdd.result = resultToAdd;
+								toAdd.date = dateOfTourney;
+								toAdd.forfeit = true;
+								toAdd.desc = descOfTourney;
+
+								results.insert(toAdd);
+								matchWindow->addResult(getMainAlias(p1Id), getMainAlias(p2Id), dateOfTourney, true, false, descOfTourney);
+							}
+						}
+
 						else {
 							// if the scores are equal, it's a tie
 							Glicko2::Result resultToAdd = Glicko2::Result(p1Id, p2Id, -1);
