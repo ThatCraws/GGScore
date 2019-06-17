@@ -2,15 +2,15 @@
 Application to create power rankings via the Glicko-2 algorithm.
 
 The basic idea of this application is to create Power Rankings.
-Originally for competitive Super Smash Bros. for the Nintendo Gamecube, but you can technically create PRs for every competitive discipline.
+Originally intended for competitive Super Smash Bros. Melee for the Nintendo Gamecube, GGScore is able to create PRs for every competitive discipline in which two sides compete with each other.
 The ratings are created via the Glicko-2 algorithm.  
 A ready-to-go build can be found in [this dropbox][Download link for build].
 
 ## Basic usage/features
 
 The general idea to use this tool is by importing tournaments from [challonge.com](https://www.challonge.com/). For this you will need a developer API key from your challonge-account.
-Then the players' names/aliases from the tournament's sets have to be associated with players. You can either associate an alias with an existing player or create a new one (when importing the first tournament you will have to create all new players of course). The results consisting of the winner, loser and date of the match will be added to the table in the "Match Report"-tab and can be manually removed (or added), if necessarry. 
-Once you imported your tourneys you have to enter a rating period. The algorithm will only take results into account that happened within a rating period. It is recommended to let a player have at least 10-15 games in a rating period to make his rating accurate (especially for the first rating period).
+Then the players' names/aliases from the tournament's sets have to be associated with players. You can either associate an alias with an existing player or create a new one (when importing the first tournament you will have to create all new players of course). The results, consisting of the winner, loser and date of the match, will be added to the table in the "Match Report"-tab and can be manually removed (or added), if necessarry. 
+Once you imported your results you have to enter a rating period. The algorithm will only take results into account that happened within a rating period. It is recommended to let a player have at least 10-15 games in a rating period to make the rating accurate (especially for the first rating period).
 If the "Match Report" gets too clustered you can use the "Finalize Ratings"-option in the "Rating Periods"-tab (where the actual PR is shown as well) to clear the tables displaying the results and rating periods. This also means that you will not be able to remove/add results from the rating periods existing before finalizing though (thus finalizing the ratings up to that point). However, you can add/remove and import results as before from then on.
 
 Keep in mind that only results within a rating period will be used to calculate a rating.
