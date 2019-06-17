@@ -682,7 +682,7 @@ bool MainWin::loadWorld() {
 
 	const Json::Value& players = obj["players"]; // array of players
 
-	// load rating periods before players so the number of rating values per player can be corrected if neccessary
+	// load rating periods before players so the size of the rating value can be set accordingly
 	const Json::Value& periods = obj["rating periods"]; // array of start and end dates of all rating periods
 
 	wxDateTime start;
@@ -708,25 +708,16 @@ bool MainWin::loadWorld() {
 
 		std::vector<Rating> ratingVector; // vector containing the start-rating of the player and entries for each rating period (start values -> current)
 
-		const Json::Value& ratingVals = players[i]["rating values"]; // array of current players' rating values (or rather rating values-objects)
+		const Json::Value& ratingVals = players[i]["start rating values"]; // current player's starting rating values
 
 		// loading and storing the players' start rating values and inserting items into the ratingVal-vector per rating period
 
 		Rating toAdd;
-		toAdd.rating = ratingVals[0]["rating"].asDouble();
-		toAdd.deviation = ratingVals[0]["deviation"].asDouble();
-		toAdd.volatility = ratingVals[0]["volatility"].asDouble();
+		toAdd.rating = ratingVals["rating"].asDouble();
+		toAdd.deviation = ratingVals["deviation"].asDouble();
+		toAdd.volatility = ratingVals["volatility"].asDouble();
 
-		ratingVector.resize(ratingVals.size(), toAdd);
-
-		/*for (unsigned int j = 0; j < ratingVals.size(); j++) {
-			Rating toAdd;
-			toAdd.rating = ratingVals[j]["rating"].asDouble();
-			toAdd.deviation = ratingVals[j]["deviation"].asDouble();
-			toAdd.volatility = ratingVals[j]["volatility"].asDouble();
-
-			ratingVector.push_back(toAdd);
-		}*/
+		ratingVector.resize(ratingPeriods.size() + 1, toAdd);
 
 		// could use the default values of addPlayer, but this spares us the ifception
 		unsigned int wins = 0;
@@ -777,17 +768,12 @@ bool MainWin::saveWorld() {
 			currAliases.append(Json::Value(*currAlias)); // filling the aliases section with the aliases of the current player
 		}
 
-		Json::Value currPlayerRatings(Json::arrayValue); // equal to the "rating values" in players.json (to save all rating values for every period)
+		Json::Value startValues; // The player's starting (rating) values
+		startValues["rating"] = currPlayerBasePlayer->ratings.at(0).rating;
+		startValues["deviation"] = currPlayerBasePlayer->ratings.at(0).deviation;
+		startValues["volatility"] = currPlayerBasePlayer->ratings.at(0).volatility;
 
-		for (auto currRating = currPlayerBasePlayer->ratings.begin(); currRating != currPlayerBasePlayer->ratings.end(); currRating++) {
-			Json::Value ratingValsToAdd; // Contains the rating values of the currently saved period
-			ratingValsToAdd["rating"] = currRating->rating;
-			ratingValsToAdd["deviation"] = currRating->deviation;
-			ratingValsToAdd["volatility"] = currRating->volatility;
-			currPlayerRatings.append(ratingValsToAdd);
-		}
-
-		currEntry["rating values"] = currPlayerRatings;
+		currEntry["start rating values"] = startValues;
 		currEntry["wins"] = currPlayerBasePlayer->wins;
 		currEntry["losses"] = currPlayerBasePlayer->losses;
 		currEntry["ties"] = currPlayerBasePlayer->ties;
